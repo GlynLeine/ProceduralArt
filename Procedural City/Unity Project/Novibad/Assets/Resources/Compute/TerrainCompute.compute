@@ -1,0 +1,44 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSTerrain
+
+struct Octave
+{
+    float2 offset;
+    float2 scale;
+    float height;
+};
+
+static const float PI = 3.14159265359f;
+
+RWStructuredBuffer<float3> vertices;
+RWStructuredBuffer<Octave> octaves;
+float dimension;
+uint resolution;
+
+#include "Assets/Resources/Compute/SimplexNoise.compute"
+
+int CalcIndex(uint3 id)
+{
+    return id.x * resolution + id.y;
+}
+
+[numthreads(8, 8, 1)]
+void CSTerrain(uint3 id : SV_DispatchThreadID)
+{
+    uint octaveCount;
+    uint stride;
+    octaves.GetDimensions(octaveCount, stride);
+
+    int index = CalcIndex(id);
+    float x = vertices[index].x;
+    float y = 0;
+    float z = vertices[index].z;
+
+    for (int o = 0; o < octaveCount; o++)
+    {
+        float noise = pnoise(float2((x * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * octaves[o].scale.y + octaves[o].offset.y) / dimension));
+        y += noise * octaves[o].height;
+    }
+
+    vertices[index] = float3(x, y, z);
+}

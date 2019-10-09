@@ -1,0 +1,4 @@
+*.spp filter=lfs diff=lfs merge=lfs -text
+*.painter_lock filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.unity filter=lfs diff=lfs merge=lfs -text
