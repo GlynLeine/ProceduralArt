@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
 
@@ -14,6 +14,11 @@ public class TerrainGen : MonoBehaviour
     public int resolution = 1;
 
     public bool vertexCompute;
+
+    public int seed = 0;
+
+    public int erosionBrushRadius = 3;
+
     #endregion
 
     #region Readables
@@ -42,8 +47,10 @@ public class TerrainGen : MonoBehaviour
     #endregion
 
     #region Compute Shader
-    private ComputeShader computeShader;
+    private ComputeShader terrainComputeShader;
+    private ComputeShader erosionComputeShader;
     private int terrainKernel;
+    private int erosionKernel;
 
     private ComputeBuffer vertexBuffer;
     private ComputeBuffer octaveBuffer;
@@ -56,8 +63,8 @@ public class TerrainGen : MonoBehaviour
 
     void Setup()
     {
-        spaceBetweenVertices = dimension / (float)(resolution - 1);
-        verticesPerSide = Mathf.RoundToInt(dimension / spaceBetweenVertices) + 1;
+        spaceBetweenVertices = dimension / (float)(resolution);
+        verticesPerSide = resolution;
 
         #region Mesh Setup
 
@@ -65,12 +72,14 @@ public class TerrainGen : MonoBehaviour
         {
             mesh = new Mesh();
             mesh.name = gameObject.name;
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
             mesh.vertices = GenerateVerts();
             if (mesh.vertexCount <= 0)
                 return;
 
             mesh.triangles = GenerateTries();
+
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
@@ -81,7 +90,7 @@ public class TerrainGen : MonoBehaviour
 
             meshFilter.mesh = mesh;
 
-            if (meshFilter == null)
+            if (meshRenderer == null)
                 meshRenderer = gameObject.GetComponent<MeshRenderer>();
             if (meshRenderer == null)
                 meshRenderer = gameObject.AddComponent<MeshRenderer>();
@@ -92,14 +101,24 @@ public class TerrainGen : MonoBehaviour
         #endregion
 
         #region Compute shader Setup
-        computeShader = Resources.Load<ComputeShader>("Compute/TerrainCompute");
-        terrainKernel = computeShader.FindKernel("CSTerrain");
+        erosionComputeShader = Resources.Load<ComputeShader>("Compute/ErosionCompute");
+        erosionKernel = erosionComputeShader.FindKernel("CSErosion");
 
-        computeShader.SetFloat("dimension", dimension);
-        computeShader.SetInt("resolution", resolution);
+        terrainComputeShader = Resources.Load<ComputeShader>("Compute/TerrainCompute");
+        terrainKernel = terrainComputeShader.FindKernel("CSTerrain");
+
+        terrainComputeShader.SetFloat("dimension", dimension);
+        terrainComputeShader.SetInt("resolution", resolution);
 
         if (vertexBuffer == null)
+        {
             vertexBuffer = new ComputeBuffer(mesh.vertexCount, sizeof(float) * 3);
+        }
+        else if (vertexBuffer.count != mesh.vertexCount)
+        {
+            vertexBuffer.Dispose();
+            vertexBuffer = new ComputeBuffer(mesh.vertexCount, sizeof(float) * 3);
+        }
 
         if (octaveBuffer == null)
         {
@@ -113,23 +132,29 @@ public class TerrainGen : MonoBehaviour
             octaveBuffer = new ComputeBuffer(octaves.Length, hypotheticalStride);
         }
 
-        computeShader.SetBuffer(terrainKernel, "vertices", vertexBuffer);
-        computeShader.SetBuffer(terrainKernel, "octaves", octaveBuffer);
+        terrainComputeShader.SetBuffer(terrainKernel, "vertices", vertexBuffer);
+        terrainComputeShader.SetBuffer(terrainKernel, "octaves", octaveBuffer);
 
         vertexBuffer.SetData(mesh.vertices);
-        octaveBuffer.SetData(octaves);
+
+        UnityEngine.Random.InitState(seed);
+        Octave[] seededOctaves = octaves.Clone() as Octave[];
+        for (int i = 0; i < seededOctaves.Length; i++)
+        {
+            seededOctaves[i].offset += new Vector2(UnityEngine.Random.value * seed * 4868, UnityEngine.Random.value * seed * 4868);
+        }
+
+        octaveBuffer.SetData(seededOctaves);
         #endregion
     }
 
     #region In Editor
     private void OnValidate()
     {
-        if (resolution > 200)
-            resolution = 200;
-        resolution = Mathf.RoundToInt(resolution / 8f) * 8;
+        resolution = Mathf.RoundToInt(resolution / 32f) * 32;
 
-        if (resolution < 8)
-            resolution = 8;
+        if (resolution < 32)
+            resolution = 32;
 
         if (updateInEditor)
             setupMesh = true;
@@ -137,14 +162,16 @@ public class TerrainGen : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        if (!updateInEditor)
+            return;
+
         if (setupMesh)
         {
             Setup();
+            UpdateMesh();
+
             setupMesh = false;
         }
-
-        if (updateInEditor)
-            UpdateMesh();
     }
     #endregion
 
@@ -154,28 +181,34 @@ public class TerrainGen : MonoBehaviour
         Vector3[] verts = new Vector3[verticesPerSide * verticesPerSide];
 
         //equaly distributed verts
-        for (float x = 0; x <= dimension; x += spaceBetweenVertices)
-            for (float z = 0; z <= dimension; z += spaceBetweenVertices)
-                verts[Index(x, z)] = new Vector3(x, 0, z);
+        for (int x = 0; x < verticesPerSide; x++)
+            for (int z = 0; z < verticesPerSide; z++)
+            {
+                verts[Index(x, z)] = new Vector3(x * spaceBetweenVertices, 0, z * spaceBetweenVertices);
+            }
 
         return verts;
     }
 
     private int[] GenerateTries()
     {
-        int[] tries = new int[mesh.vertices.Length * 6];
+        int[] tries = new int[(verticesPerSide - 1) * (verticesPerSide - 1) * 6];
 
         //two triangles are one tile
-        for (float x = 0; x < dimension-spaceBetweenVertices; x += spaceBetweenVertices)
+        for (int x = 0; x < verticesPerSide - 1; x++)
         {
-            for (float z = 0; z < dimension-spaceBetweenVertices; z += spaceBetweenVertices)
+            for (int z = 0; z < verticesPerSide - 1; z++)
             {
-                tries[Index(x, z) * 6 + 0] = Index(x, z);
-                tries[Index(x, z) * 6 + 1] = Index(x + spaceBetweenVertices, z + spaceBetweenVertices);
-                tries[Index(x, z) * 6 + 2] = Index(x + spaceBetweenVertices, z);
-                tries[Index(x, z) * 6 + 3] = Index(x, z);
-                tries[Index(x, z) * 6 + 4] = Index(x, z + spaceBetweenVertices);
-                tries[Index(x, z) * 6 + 5] = Index(x + spaceBetweenVertices, z + spaceBetweenVertices);
+                int index = (x * (verticesPerSide - 1) + z) * 6;
+                int vertIndex = Index(x, z);
+
+                tries[index + 0] = vertIndex;
+                tries[index + 1] = vertIndex + verticesPerSide + 1;
+                tries[index + 2] = vertIndex + verticesPerSide;
+
+                tries[index + 3] = vertIndex;
+                tries[index + 4] = vertIndex + 1;
+                tries[index + 5] = vertIndex + verticesPerSide + 1;
             }
         }
 
@@ -184,14 +217,14 @@ public class TerrainGen : MonoBehaviour
 
     private Vector2[] GenerateUVs()
     {
-        Vector2[] uvs = new Vector2[mesh.vertices.Length];
+        Vector2[] uvs = new Vector2[verticesPerSide * verticesPerSide];
 
         //always set one uv over n tiles than flip the uv and set it again
-        for (float x = 0; x <= dimension; x += spaceBetweenVertices)
+        for (int x = 0; x < verticesPerSide; x++)
         {
-            for (float z = 0; z <= dimension; z += spaceBetweenVertices)
+            for (int z = 0; z < verticesPerSide; z++)
             {
-                Vector2 vec = new Vector2((x / uvScale) % 2, (z / uvScale) % 2);
+                Vector2 vec = new Vector2((x * spaceBetweenVertices / uvScale) % 2, (z * spaceBetweenVertices / uvScale) % 2);
                 uvs[Index(x, z)] = new Vector2(vec.x <= 1 ? vec.x : 2 - vec.x, vec.y <= 1 ? vec.y : 2 - vec.y);
             }
         }
@@ -199,46 +232,77 @@ public class TerrainGen : MonoBehaviour
         return uvs;
     }
 
-    private int Index(float x, float z)
+    private int Index(int x, int z)
     {
-        int ret = Mathf.RoundToInt((x / spaceBetweenVertices) * (dimension / spaceBetweenVertices + 1) + (z / spaceBetweenVertices));
+        int ret = x * verticesPerSide + z;
         return ret;
     }
     #endregion
 
     #region Mesh Update
+    void Erode()
+    {
+        List<int> brushIndexOffsets = new List<int>();
+        List<float> brushWeights = new List<float>();
+
+        float weightSum = 0;
+        for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
+        {
+            for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
+            {
+                float sqrDst = brushX * brushX + brushY * brushY;
+                if (sqrDst < erosionBrushRadius * erosionBrushRadius)
+                {
+                    brushIndexOffsets.Add(brushY * resolution + brushX);
+                    float brushWeight = 1 - Mathf.Sqrt(sqrDst) / erosionBrushRadius;
+                    weightSum += brushWeight;
+                    brushWeights.Add(brushWeight);
+                }
+            }
+        }
+        for (int i = 0; i < brushWeights.Count; i++)
+        {
+            brushWeights[i] /= weightSum;
+        }
+
+        // Send brush data to compute shader
+        ComputeBuffer brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
+        ComputeBuffer brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
+        brushIndexBuffer.SetData(brushIndexOffsets);
+        brushWeightBuffer.SetData(brushWeights);
+        erosionComputeShader.SetBuffer(0, "brushIndices", brushIndexBuffer);
+        erosionComputeShader.SetBuffer(0, "brushWeights", brushWeightBuffer);
+    }
+
     void UpdateMesh()
     {
-        if (computeShader == null || vertexBuffer == null)
-            Setup();
+        terrainComputeShader.SetFloat("time", Time.time);
+        terrainComputeShader.SetInt("resolution", resolution);
 
-        computeShader.SetFloat("time", Time.time);
-        computeShader.SetInt("resolution", resolution);
-
-        int vertexDispatchGroupSize = resolution / 8;
+        int vertexDispatchGroupSize = resolution / 32;
 
         if (vertexCompute)
         {
-            computeShader.Dispatch(terrainKernel, vertexDispatchGroupSize, vertexDispatchGroupSize, 1);
+            terrainComputeShader.Dispatch(terrainKernel, vertexDispatchGroupSize, vertexDispatchGroupSize, 1);
 
             vertices = new Vector3[vertexBuffer.count];
             vertexBuffer.GetData(vertices);
             mesh.vertices = vertices;
         }
-        else
+        else // LEGACY: old way of generating height offsets on CPU.
         {
             vertices = mesh.vertices;
-            for (float x = 0; x <= dimension; x += spaceBetweenVertices)
+            for (int x = 0; x < verticesPerSide; x++)
             {
-                for (float z = 0; z <= dimension; z += spaceBetweenVertices)
+                for (int z = 0; z < verticesPerSide; z++)
                 {
                     float y = 0f;
                     for (int o = 0; o < octaves.Length; o++)
                     {
-                        float perl = Mathf.PerlinNoise((x * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * octaves[o].scale.y + octaves[o].offset.y) / dimension);
+                        float perl = Mathf.PerlinNoise((x * verticesPerSide * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * spaceBetweenVertices * octaves[o].scale.y + octaves[o].offset.y) / dimension);
                         y += perl * octaves[o].height;
                     }
-                    vertices[Index(x, z)] = new Vector3(x, y, z);
+                    vertices[Index(x, z)] = new Vector3(x * verticesPerSide, y, z * verticesPerSide);
                 }
             }
             mesh.vertices = vertices;
@@ -249,7 +313,6 @@ public class TerrainGen : MonoBehaviour
     #endregion
 
     #region Runtime
-    // Start is called before the first frame update
     void Start()
     {
         Setup();
@@ -258,8 +321,9 @@ public class TerrainGen : MonoBehaviour
 
     private void Update()
     {
-        Setup();
-        UpdateMesh();
+        /// Uncomment for editing mesh in play mode (HIGHLY DISCOURAGED!!!)
+        //Setup();
+        //UpdateMesh();
     }
 
     private void OnDestroy()

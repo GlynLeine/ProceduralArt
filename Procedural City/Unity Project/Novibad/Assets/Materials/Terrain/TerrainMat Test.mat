@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: TerrainMat
+  m_Name: TerrainMat Test
   m_Shader: {fileID: -6465566751694194690, guid: 924c3911393b1ab4c94c7d9716a47a70,
     type: 3}
   m_ShaderKeywords: 
@@ -25,7 +25,7 @@ Material:
     m_Floats:
     - Vector1_10B9FD53: 0.086
     - Vector1_133AF341: 44.4
-    - Vector1_1FABB4AB: -12.04
+    - Vector1_1FABB4AB: 11.8
     - Vector1_82633867: -12.3
     - Vector1_826FCD68: 2.69
     - Vector1_85C4AB26: 0.179
