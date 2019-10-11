@@ -8,21 +8,35 @@ public class TerrainGen : MonoBehaviour
     //Public Properties
     #region Inputs
     public bool updateInEditor;
+
+    [Header("Mesh Settings")]
     public int dimension = 10;
     public float uvScale = 2f;
     public Octave[] octaves;
     public int resolution = 1;
-
     public bool vertexCompute;
-
     public int seed = 0;
 
+    [Header("Erosion Settings")]
+    public bool erodeInEditor;
+    public int erosionIterationCount = 50000;
     public int erosionBrushRadius = 3;
 
+    public int maximumDropletLifeTime = 30;
+    public float sedimentCapacityFactor = 3;
+    public float minSedimentCapacity = .01f;
+    public float depositSpeed = 0.3f;
+    public float erosionSpeed = 0.3f;
+
+    public float evaporationSpeed = .01f;
+    public float gravity = 4;
+    public float startSpeed = 1;
+    public float startWater = 1;
+    [Range(0, 1)]
+    public float inertia = 0.3f;
     #endregion
 
     #region Readables
-
     [Serializable]
     public struct Octave
     {
@@ -30,6 +44,8 @@ public class TerrainGen : MonoBehaviour
         public Vector2 scale;
         public float height;
     }
+
+    public float[] HeightMap { get => heightMap; }
     #endregion
 
     #region Privates
@@ -39,11 +55,12 @@ public class TerrainGen : MonoBehaviour
     private Mesh mesh;
 
     private Vector3[] vertices;
+    private float[] heightMap;
 
     private float spaceBetweenVertices = 1f;
     private int verticesPerSide = 2;
 
-    private bool setupMesh = true;
+    private bool updateMesh = true;
     #endregion
 
     #region Compute Shader
@@ -54,6 +71,9 @@ public class TerrainGen : MonoBehaviour
 
     private ComputeBuffer vertexBuffer;
     private ComputeBuffer octaveBuffer;
+    private ComputeBuffer brushIndexBuffer;
+    private ComputeBuffer brushWeightBuffer;
+    private ComputeBuffer randomIndexBuffer;
     #endregion
 
     #region Multi Threading
@@ -100,10 +120,8 @@ public class TerrainGen : MonoBehaviour
 
         #endregion
 
-        #region Compute shader Setup
-        erosionComputeShader = Resources.Load<ComputeShader>("Compute/ErosionCompute");
-        erosionKernel = erosionComputeShader.FindKernel("CSErosion");
-
+        #region Compute shader Setup     
+        #region Terrain Compute
         terrainComputeShader = Resources.Load<ComputeShader>("Compute/TerrainCompute");
         terrainKernel = terrainComputeShader.FindKernel("CSTerrain");
 
@@ -146,18 +164,90 @@ public class TerrainGen : MonoBehaviour
 
         octaveBuffer.SetData(seededOctaves);
         #endregion
+
+        #region Erosion Compute
+        erosionComputeShader = Resources.Load<ComputeShader>("Compute/ErosionCompute");
+        erosionKernel = erosionComputeShader.FindKernel("CSErosion");
+
+        List<int> brushIndexOffsets = new List<int>();
+        List<float> brushWeights = new List<float>();
+
+        float weightSum = 0;
+        for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
+        {
+            for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
+            {
+                float sqrDst = brushX * brushX + brushY * brushY;
+                if (sqrDst < erosionBrushRadius * erosionBrushRadius)
+                {
+                    brushIndexOffsets.Add(brushY * resolution + brushX);
+                    float brushWeight = 1 - Mathf.Sqrt(sqrDst) / erosionBrushRadius;
+                    weightSum += brushWeight;
+                    brushWeights.Add(brushWeight);
+                }
+            }
+        }
+        for (int i = 0; i < brushWeights.Count; i++)
+        {
+            brushWeights[i] /= weightSum;
+        }
+
+        brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
+        brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
+        brushIndexBuffer.SetData(brushIndexOffsets);
+        brushWeightBuffer.SetData(brushWeights);
+        erosionComputeShader.SetBuffer(erosionKernel, "brushIndices", brushIndexBuffer);
+        erosionComputeShader.SetBuffer(erosionKernel, "brushWeights", brushWeightBuffer);
+
+        int[] randomIndices = new int[erosionIterationCount];
+        for (int i = 0; i < erosionIterationCount; i++)
+        {
+            int randomX = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
+            int randomY = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
+            randomIndices[i] = randomY * resolution + randomX;
+        }
+
+        randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int));
+        randomIndexBuffer.SetData(randomIndices);
+        erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
+
+        erosionComputeShader.SetBuffer(erosionKernel, "vertices", vertexBuffer);
+
+
+        // Erosion Settings
+        erosionComputeShader.SetInt("borderSize", erosionBrushRadius);
+        erosionComputeShader.SetInt("mapSize", resolution);
+        erosionComputeShader.SetInt("brushLength", brushIndexOffsets.Count);
+        erosionComputeShader.SetInt("maxLifetime", maximumDropletLifeTime);
+        erosionComputeShader.SetFloat("inertia", inertia);
+        erosionComputeShader.SetFloat("sedimentCapacityFactor", sedimentCapacityFactor);
+        erosionComputeShader.SetFloat("minSedimentCapacity", minSedimentCapacity);
+        erosionComputeShader.SetFloat("depositSpeed", depositSpeed);
+        erosionComputeShader.SetFloat("erodeSpeed", erosionSpeed);
+        erosionComputeShader.SetFloat("evaporateSpeed", evaporationSpeed);
+        erosionComputeShader.SetFloat("gravity", gravity);
+        erosionComputeShader.SetFloat("startSpeed", startSpeed);
+        erosionComputeShader.SetFloat("startWater", startWater);
+        #endregion
+
+        #endregion
     }
 
     #region In Editor
     private void OnValidate()
     {
+        erosionIterationCount = Mathf.RoundToInt(erosionIterationCount / 1024f) * 1024;
+
+        if (erosionIterationCount < 1024)
+            erosionIterationCount = 1024;
+
         resolution = Mathf.RoundToInt(resolution / 32f) * 32;
 
         if (resolution < 32)
             resolution = 32;
 
         if (updateInEditor)
-            setupMesh = true;
+            updateMesh = true;
     }
 
     private void OnDrawGizmos()
@@ -165,12 +255,10 @@ public class TerrainGen : MonoBehaviour
         if (!updateInEditor)
             return;
 
-        if (setupMesh)
+        if (updateMesh)
         {
-            Setup();
             UpdateMesh();
-
-            setupMesh = false;
+            updateMesh = false;
         }
     }
     #endregion
@@ -240,44 +328,52 @@ public class TerrainGen : MonoBehaviour
     #endregion
 
     #region Mesh Update
-    void Erode()
-    {
-        List<int> brushIndexOffsets = new List<int>();
-        List<float> brushWeights = new List<float>();
-
-        float weightSum = 0;
-        for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
-        {
-            for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
-            {
-                float sqrDst = brushX * brushX + brushY * brushY;
-                if (sqrDst < erosionBrushRadius * erosionBrushRadius)
-                {
-                    brushIndexOffsets.Add(brushY * resolution + brushX);
-                    float brushWeight = 1 - Mathf.Sqrt(sqrDst) / erosionBrushRadius;
-                    weightSum += brushWeight;
-                    brushWeights.Add(brushWeight);
-                }
-            }
-        }
-        for (int i = 0; i < brushWeights.Count; i++)
-        {
-            brushWeights[i] /= weightSum;
-        }
-
-        // Send brush data to compute shader
-        ComputeBuffer brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
-        ComputeBuffer brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
-        brushIndexBuffer.SetData(brushIndexOffsets);
-        brushWeightBuffer.SetData(brushWeights);
-        erosionComputeShader.SetBuffer(0, "brushIndices", brushIndexBuffer);
-        erosionComputeShader.SetBuffer(0, "brushWeights", brushWeightBuffer);
-    }
-
     void UpdateMesh()
     {
-        terrainComputeShader.SetFloat("time", Time.time);
-        terrainComputeShader.SetInt("resolution", resolution);
+        Setup();
+        UpdateMeshHeight();
+
+        if (erodeInEditor)
+            Erode();
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
+        mesh.RecalculateBounds();
+        UpdateHeightMap();
+    }
+
+    void UpdateHeightMap()
+    {
+        Debug.Log("Updating HeightMap...");
+
+        int vertexCount = vertexBuffer.count;
+        vertices = new Vector3[vertexCount];
+        vertexBuffer.GetData(vertices);
+
+        heightMap = new float[vertexCount];
+        for (int i = 0; i < vertexCount; i++)
+            heightMap[i] = vertices[i].y;
+
+        Debug.Log("HeightMap Done!");
+    }
+
+    void Erode()
+    {
+        Debug.Log("Eroding...");
+
+        int erosionDispatchGroupSize = erosionIterationCount / 1024;
+        erosionComputeShader.Dispatch(erosionKernel, erosionDispatchGroupSize, 1, 1);
+
+        vertices = new Vector3[vertexBuffer.count];
+        vertexBuffer.GetData(vertices);
+        mesh.vertices = vertices;
+
+        Debug.Log("Erosion Done!");
+    }
+
+    void UpdateMeshHeight()
+    {
+        Debug.Log("Calculating MeshHeight...");
 
         int vertexDispatchGroupSize = resolution / 32;
 
@@ -308,14 +404,23 @@ public class TerrainGen : MonoBehaviour
             mesh.vertices = vertices;
         }
 
-        mesh.RecalculateNormals();
+        Debug.Log("MeshHeight Done!");
+    }
+
+    void ReleaseBuffers()
+    {
+        vertexBuffer.Release();
+        octaveBuffer.Release();
+        brushIndexBuffer.Release();
+        brushWeightBuffer.Release();
+        randomIndexBuffer.Release();
     }
     #endregion
 
     #region Runtime
     void Start()
     {
-        Setup();
+        erodeInEditor = true;
         UpdateMesh();
     }
 
@@ -328,10 +433,6 @@ public class TerrainGen : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (vertexBuffer != null)
-            vertexBuffer.Dispose();
-        if (octaveBuffer != null)
-            octaveBuffer.Dispose();
     }
 
 
