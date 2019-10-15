@@ -44,7 +44,7 @@ public class TerrainGen : MonoBehaviour
         public float height;
     }
 
-    public float[] HeightMap { get => heightMap; }
+    public float[,] HeightMap { get => heightMap; }
     #endregion
 
     #region Privates
@@ -55,7 +55,7 @@ public class TerrainGen : MonoBehaviour
     public Mesh mesh;
 
     private Vector3[] vertices;
-    private float[] heightMap;
+    private float[,] heightMap;
 
     private float spaceBetweenVertices = 1f;
     private int verticesPerSide = 2;
@@ -355,9 +355,10 @@ public class TerrainGen : MonoBehaviour
         vertices = new Vector3[vertexCount];
         vertexBuffer.GetData(vertices);
 
-        heightMap = new float[vertexCount];
-        for (int i = 0; i < vertexCount; i++)
-            heightMap[i] = vertices[i].y;
+        heightMap = new float[resolution, resolution];
+        for (int x = 0; x < resolution; x++)
+            for (int y = 0; y < resolution; y++)
+                heightMap[x, y] = vertices[x*resolution + y].y;
 
         Debug.Log("HeightMap Done!");
     }

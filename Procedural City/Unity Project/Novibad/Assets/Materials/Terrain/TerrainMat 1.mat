@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: TerrainMat Test
+  m_Name: TerrainMat 1
   m_Shader: {fileID: -6465566751694194690, guid: 924c3911393b1ab4c94c7d9716a47a70,
     type: 3}
   m_ShaderKeywords: 
@@ -24,19 +24,25 @@ Material:
     m_TexEnvs: []
     m_Floats:
     - Vector1_10B9FD53: 0.086
-    - Vector1_133AF341: 44.4
-    - Vector1_1FABB4AB: 11.8
+    - Vector1_1278435: 1
+    - Vector1_133AF341: 44.9
+    - Vector1_1DBF8BDA: 44
+    - Vector1_1FABB4AB: 12.2
+    - Vector1_588F2B53: 42
     - Vector1_82633867: -12.3
-    - Vector1_826FCD68: 2.69
-    - Vector1_85C4AB26: 0.179
+    - Vector1_826FCD68: 0.89
+    - Vector1_85C4AB26: 0.3
+    - Vector1_85EEE73F: 0.184
     - Vector1_B931E75F: 141
-    - Vector1_E64BA340: 0.278
-    - Vector1_FC788855: 28.9
+    - Vector1_E64BA340: 0.26
+    - Vector1_F8C126FF: 0
+    - Vector1_FC788855: 0.1
     m_Colors:
     - Color_20B268F2: {r: 0, g: 0.3962264, b: 0.09433964, a: 1}
-    - Color_44140683: {r: 0.37735847, g: 0.37735847, b: 0.37735847, a: 1}
-    - Color_4A2BC6AE: {r: 0.189, g: 0.141, b: 0.075, a: 1}
+    - Color_44140683: {r: 0.27899998, g: 0.27899998, b: 0.27899998, a: 1}
+    - Color_4A2BC6AE: {r: 0.754717, g: 0.7101715, b: 0.53755784, a: 1}
     - Color_83BAAF83: {r: 0.1254895, g: 0.25321174, b: 0.5660378, a: 1}
     - Color_886AD0A8: {r: 0.46226418, g: 0.46226418, b: 0.46226418, a: 1}
-    - Color_CA6ADD11: {r: 0.09451762, g: 0.33962262, b: 0.10983668, a: 1}
+    - Color_CA6ADD11: {r: 0.13542184, g: 0.32099998, b: 0.1454531, a: 1}
+    - Color_F5502398: {r: 0.26415092, g: 0.1622211, b: 0.028657887, a: 1}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
