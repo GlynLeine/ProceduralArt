@@ -14,7 +14,6 @@ public class TerrainGen : MonoBehaviour
     public float uvScale = 2f;
     public Octave[] octaves;
     public int resolution = 1;
-    public bool vertexCompute;
     public int seed = 0;
 
     [Header("Erosion Settings")]
@@ -52,7 +51,8 @@ public class TerrainGen : MonoBehaviour
     //Mesh
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
-    private Mesh mesh;
+    [HideInInspector]
+    public Mesh mesh;
 
     private Vector3[] vertices;
     private float[] heightMap;
@@ -87,7 +87,6 @@ public class TerrainGen : MonoBehaviour
         verticesPerSide = resolution;
 
         #region Mesh Setup
-
         if (mesh == null || meshFilter == null)
         {
             mesh = new Mesh();
@@ -166,68 +165,71 @@ public class TerrainGen : MonoBehaviour
         #endregion
 
         #region Erosion Compute
-        erosionComputeShader = Resources.Load<ComputeShader>("Compute/ErosionCompute");
-        erosionKernel = erosionComputeShader.FindKernel("CSErosion");
-
-        List<int> brushIndexOffsets = new List<int>();
-        List<float> brushWeights = new List<float>();
-
-        float weightSum = 0;
-        for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
+        if (erodeInEditor)
         {
-            for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
+            erosionComputeShader = Resources.Load<ComputeShader>("Compute/ErosionCompute");
+            erosionKernel = erosionComputeShader.FindKernel("CSErosion");
+
+            List<int> brushIndexOffsets = new List<int>();
+            List<float> brushWeights = new List<float>();
+
+            float weightSum = 0;
+            for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++)
             {
-                float sqrDst = brushX * brushX + brushY * brushY;
-                if (sqrDst < erosionBrushRadius * erosionBrushRadius)
+                for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++)
                 {
-                    brushIndexOffsets.Add(brushY * resolution + brushX);
-                    float brushWeight = 1 - Mathf.Sqrt(sqrDst) / erosionBrushRadius;
-                    weightSum += brushWeight;
-                    brushWeights.Add(brushWeight);
+                    float sqrDst = brushX * brushX + brushY * brushY;
+                    if (sqrDst < erosionBrushRadius * erosionBrushRadius)
+                    {
+                        brushIndexOffsets.Add(brushY * resolution + brushX);
+                        float brushWeight = 1 - Mathf.Sqrt(sqrDst) / erosionBrushRadius;
+                        weightSum += brushWeight;
+                        brushWeights.Add(brushWeight);
+                    }
                 }
             }
+            for (int i = 0; i < brushWeights.Count; i++)
+            {
+                brushWeights[i] /= weightSum;
+            }
+
+            brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
+            brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
+            brushIndexBuffer.SetData(brushIndexOffsets);
+            brushWeightBuffer.SetData(brushWeights);
+            erosionComputeShader.SetBuffer(erosionKernel, "brushIndices", brushIndexBuffer);
+            erosionComputeShader.SetBuffer(erosionKernel, "brushWeights", brushWeightBuffer);
+
+            int[] randomIndices = new int[erosionIterationCount];
+            for (int i = 0; i < erosionIterationCount; i++)
+            {
+                int randomX = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
+                int randomY = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
+                randomIndices[i] = randomY * resolution + randomX;
+            }
+
+            randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int));
+            randomIndexBuffer.SetData(randomIndices);
+            erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
+
+            erosionComputeShader.SetBuffer(erosionKernel, "vertices", vertexBuffer);
+
+
+            // Erosion Settings
+            erosionComputeShader.SetInt("borderSize", erosionBrushRadius);
+            erosionComputeShader.SetInt("mapSize", resolution);
+            erosionComputeShader.SetInt("brushLength", brushIndexOffsets.Count);
+            erosionComputeShader.SetInt("maxLifetime", maximumDropletLifeTime);
+            erosionComputeShader.SetFloat("inertia", inertia);
+            erosionComputeShader.SetFloat("sedimentCapacityFactor", sedimentCapacityFactor);
+            erosionComputeShader.SetFloat("minSedimentCapacity", minSedimentCapacity);
+            erosionComputeShader.SetFloat("depositSpeed", depositSpeed);
+            erosionComputeShader.SetFloat("erodeSpeed", erosionSpeed);
+            erosionComputeShader.SetFloat("evaporateSpeed", evaporationSpeed);
+            erosionComputeShader.SetFloat("gravity", gravity);
+            erosionComputeShader.SetFloat("startSpeed", startSpeed);
+            erosionComputeShader.SetFloat("startWater", startWater);
         }
-        for (int i = 0; i < brushWeights.Count; i++)
-        {
-            brushWeights[i] /= weightSum;
-        }
-
-        brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
-        brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
-        brushIndexBuffer.SetData(brushIndexOffsets);
-        brushWeightBuffer.SetData(brushWeights);
-        erosionComputeShader.SetBuffer(erosionKernel, "brushIndices", brushIndexBuffer);
-        erosionComputeShader.SetBuffer(erosionKernel, "brushWeights", brushWeightBuffer);
-
-        int[] randomIndices = new int[erosionIterationCount];
-        for (int i = 0; i < erosionIterationCount; i++)
-        {
-            int randomX = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
-            int randomY = UnityEngine.Random.Range(erosionBrushRadius, resolution + erosionBrushRadius);
-            randomIndices[i] = randomY * resolution + randomX;
-        }
-
-        randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int));
-        randomIndexBuffer.SetData(randomIndices);
-        erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
-
-        erosionComputeShader.SetBuffer(erosionKernel, "vertices", vertexBuffer);
-
-
-        // Erosion Settings
-        erosionComputeShader.SetInt("borderSize", erosionBrushRadius);
-        erosionComputeShader.SetInt("mapSize", resolution);
-        erosionComputeShader.SetInt("brushLength", brushIndexOffsets.Count);
-        erosionComputeShader.SetInt("maxLifetime", maximumDropletLifeTime);
-        erosionComputeShader.SetFloat("inertia", inertia);
-        erosionComputeShader.SetFloat("sedimentCapacityFactor", sedimentCapacityFactor);
-        erosionComputeShader.SetFloat("minSedimentCapacity", minSedimentCapacity);
-        erosionComputeShader.SetFloat("depositSpeed", depositSpeed);
-        erosionComputeShader.SetFloat("erodeSpeed", erosionSpeed);
-        erosionComputeShader.SetFloat("evaporateSpeed", evaporationSpeed);
-        erosionComputeShader.SetFloat("gravity", gravity);
-        erosionComputeShader.SetFloat("startSpeed", startSpeed);
-        erosionComputeShader.SetFloat("startWater", startWater);
         #endregion
 
         #endregion
@@ -328,7 +330,7 @@ public class TerrainGen : MonoBehaviour
     #endregion
 
     #region Mesh Update
-    void UpdateMesh()
+    public void UpdateMesh()
     {
         Setup();
         UpdateMeshHeight();
@@ -339,7 +341,10 @@ public class TerrainGen : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
         mesh.RecalculateBounds();
+
         UpdateHeightMap();
+
+        ReleaseBuffers();
     }
 
     void UpdateHeightMap()
@@ -376,33 +381,12 @@ public class TerrainGen : MonoBehaviour
         Debug.Log("Calculating MeshHeight...");
 
         int vertexDispatchGroupSize = resolution / 32;
+        terrainComputeShader.Dispatch(terrainKernel, vertexDispatchGroupSize, vertexDispatchGroupSize, 1);
 
-        if (vertexCompute)
-        {
-            terrainComputeShader.Dispatch(terrainKernel, vertexDispatchGroupSize, vertexDispatchGroupSize, 1);
+        vertices = new Vector3[vertexBuffer.count];
+        vertexBuffer.GetData(vertices);
+        mesh.vertices = vertices;
 
-            vertices = new Vector3[vertexBuffer.count];
-            vertexBuffer.GetData(vertices);
-            mesh.vertices = vertices;
-        }
-        else // LEGACY: old way of generating height offsets on CPU.
-        {
-            vertices = mesh.vertices;
-            for (int x = 0; x < verticesPerSide; x++)
-            {
-                for (int z = 0; z < verticesPerSide; z++)
-                {
-                    float y = 0f;
-                    for (int o = 0; o < octaves.Length; o++)
-                    {
-                        float perl = Mathf.PerlinNoise((x * verticesPerSide * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * spaceBetweenVertices * octaves[o].scale.y + octaves[o].offset.y) / dimension);
-                        y += perl * octaves[o].height;
-                    }
-                    vertices[Index(x, z)] = new Vector3(x * verticesPerSide, y, z * verticesPerSide);
-                }
-            }
-            mesh.vertices = vertices;
-        }
 
         Debug.Log("MeshHeight Done!");
     }
@@ -410,10 +394,16 @@ public class TerrainGen : MonoBehaviour
     void ReleaseBuffers()
     {
         vertexBuffer.Release();
+        vertexBuffer = null;
         octaveBuffer.Release();
-        brushIndexBuffer.Release();
-        brushWeightBuffer.Release();
-        randomIndexBuffer.Release();
+        octaveBuffer = null;
+
+        brushIndexBuffer?.Release();
+        brushIndexBuffer = null;
+        brushWeightBuffer?.Release();
+        brushWeightBuffer = null;
+        randomIndexBuffer?.Release();
+        randomIndexBuffer = null;
     }
     #endregion
 
