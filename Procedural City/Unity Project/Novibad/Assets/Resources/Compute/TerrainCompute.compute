@@ -34,7 +34,7 @@ void CSTerrain(uint3 id : SV_DispatchThreadID)
     float y = 0;
     float z = vertices[index].z;
 
-    for (int o = 0; o < octaveCount; o++)
+    for (unsigned int o = 0; o < octaveCount; o++)
     {
         float noise = pnoise(float2((x * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * octaves[o].scale.y + octaves[o].offset.y) / dimension));
         y += noise * octaves[o].height;

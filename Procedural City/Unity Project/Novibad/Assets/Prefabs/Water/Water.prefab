@@ -52,7 +52,6 @@ MonoBehaviour:
     scale: {x: 0, y: 0}
     height: 0
   resolution: 2048
-  vertexCompute: 1
   seed: 0
   erodeInEditor: 0
   erosionIterationCount: 50176
@@ -67,6 +66,7 @@ MonoBehaviour:
   startSpeed: 1
   startWater: 1
   inertia: 0.3
+  mesh: {fileID: 0}
 --- !u!23 &3390123104551822563
 MeshRenderer:
   m_ObjectHideFlags: 0

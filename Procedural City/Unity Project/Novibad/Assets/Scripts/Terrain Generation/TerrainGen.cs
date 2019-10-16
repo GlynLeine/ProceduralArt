@@ -194,7 +194,7 @@ public class TerrainGen : MonoBehaviour
             }
 
             brushIndexBuffer = new ComputeBuffer(brushIndexOffsets.Count, sizeof(int));
-            brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(int));
+            brushWeightBuffer = new ComputeBuffer(brushWeights.Count, sizeof(float));
             brushIndexBuffer.SetData(brushIndexOffsets);
             brushWeightBuffer.SetData(brushWeights);
             erosionComputeShader.SetBuffer(erosionKernel, "brushIndices", brushIndexBuffer);
