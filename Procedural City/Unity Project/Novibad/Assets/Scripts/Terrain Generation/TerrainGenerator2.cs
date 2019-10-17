@@ -9,6 +9,9 @@ public class TerrainGenerator2 : MonoBehaviour
     public Texture2D readTex;
 
     public int resolution = 1;
+    public float dimensions = 100;
+    public float uvScale = 100;
+    public float meshHeight = 10;
 
     [Header("Noise Settings")]
     [Range(1, 8)]
@@ -35,6 +38,12 @@ public class TerrainGenerator2 : MonoBehaviour
     public float startWater = 1;
     [Range(0, 1)]
     public float inertia = 0.3f;
+
+    private Mesh mesh;
+    private MeshFilter meshFilter;
+    private MeshRenderer meshRenderer;
+    private int verticesPerSide;
+    private float spaceBetweenVertices;
 
     private ComputeShader terrainComputeShader;
     private ComputeShader erosionComputeShader;
@@ -66,8 +75,114 @@ public class TerrainGenerator2 : MonoBehaviour
         }
     }
 
+    #region Mesh Generation
+    public void GenerateMesh()
+    {
+        verticesPerSide = resolution-1;
+        spaceBetweenVertices = dimensions / verticesPerSide;
+
+        mesh = new Mesh();
+        mesh.name = gameObject.name;
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
+        mesh.vertices = GenerateVerts();
+        if (mesh.vertexCount <= 0)
+            return;
+
+        mesh.triangles = GenerateTries();
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        if (meshFilter == null)
+            meshFilter = gameObject.GetComponent<MeshFilter>();
+        if (meshFilter == null)
+            meshFilter = gameObject.AddComponent<MeshFilter>();
+
+        meshFilter.mesh = mesh;
+
+        if (meshRenderer == null)
+            meshRenderer = gameObject.GetComponent<MeshRenderer>();
+        if (meshRenderer == null)
+            meshRenderer = gameObject.AddComponent<MeshRenderer>();
+
+        mesh.uv = GenerateUVs();
+    }
+
+    private Vector3[] GenerateVerts()
+    {
+        Vector3[] verts = new Vector3[verticesPerSide * verticesPerSide];
+
+        if (readTex == null)
+            readTex = new Texture2D(verticesPerSide, verticesPerSide);
+
+        RenderTexture.active = heightMap;
+        readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0);
+        readTex.Apply();
+
+        //equaly distributed verts
+        for (int x = 0; x < verticesPerSide; x++)
+            for (int z = 0; z < verticesPerSide; z++)
+            {
+                verts[Index(x, z)] = new Vector3(x * spaceBetweenVertices, readTex.GetPixel(x, z).r * meshHeight, z * spaceBetweenVertices);
+            }
+
+        return verts;
+    }
+
+    private int[] GenerateTries()
+    {
+        int[] tries = new int[(verticesPerSide - 1) * (verticesPerSide - 1) * 6];
+
+        //two triangles are one tile
+        for (int x = 0; x < verticesPerSide - 1; x++)
+        {
+            for (int z = 0; z < verticesPerSide - 1; z++)
+            {
+                int index = (x * (verticesPerSide - 1) + z) * 6;
+                int vertIndex = Index(x, z);
+
+                tries[index + 0] = (int)vertIndex;
+                tries[index + 1] = (int)(vertIndex + verticesPerSide + 1);
+                tries[index + 2] = (int)(vertIndex + verticesPerSide);
+
+                tries[index + 3] = (int)vertIndex;
+                tries[index + 4] = (int)(vertIndex + 1);
+                tries[index + 5] = (int)(vertIndex + verticesPerSide + 1);
+            }
+        }
+
+        return tries;
+    }
+
+    private Vector2[] GenerateUVs()
+    {
+        Vector2[] uvs = new Vector2[verticesPerSide * verticesPerSide];
+
+        //always set one uv over n tiles than flip the uv and set it again
+        for (int x = 0; x < verticesPerSide; x++)
+        {
+            for (int z = 0; z < verticesPerSide; z++)
+            {
+                Vector2 vec = new Vector2((x * spaceBetweenVertices / uvScale) % 2, (z * spaceBetweenVertices / uvScale) % 2);
+                uvs[Index(x, z)] = new Vector2(vec.x <= 1 ? vec.x : 2 - vec.x, vec.y <= 1 ? vec.y : 2 - vec.y);
+            }
+        }
+
+        return uvs;
+    }
+
+    private int Index(int x, int z)
+    {
+        int ret = x * verticesPerSide + z;
+        return ret;
+    }
+    #endregion
+
     public void GenerateHeightMap()
     {
+        if (heightMap != null)
+            heightMap.Release();
         heightMap = new RenderTexture(resolution, resolution, 24);
         heightMap.enableRandomWrite = true;
         heightMap.Create();
@@ -91,10 +206,10 @@ public class TerrainGenerator2 : MonoBehaviour
         terrainComputeShader.SetBuffer(terrainKernel, "randomOffsets", randomOffsetsBuffer);
 
         Random.InitState(seed);
-        Vector2Int[] randomOffsets = new Vector2Int[layers];
+        Vector2[] randomOffsets = new Vector2[layers];
         for (int i = 0; i < randomOffsets.Length; i++)
         {
-            randomOffsets[i] = new Vector2Int(Random.Range(-10000, 10000), Random.Range(-10000, 10000));
+            randomOffsets[i] = new Vector2(Random.Range(-10000f, 10000f), Random.Range(-10000f, 10000f));
         }
 
         randomOffsetsBuffer.SetData(randomOffsets);
@@ -177,7 +292,7 @@ public class TerrainGenerator2 : MonoBehaviour
         brushWeightBuffer.Dispose();
         randomIndexBuffer.Dispose();
 
-        CPUErosion(0, randomIndices, brushWeights.ToArray(), brushIndexOffsets.ToArray());
+        // CPUErosion(0, randomIndices, brushWeights.ToArray(), brushIndexOffsets.ToArray());
 
         // Debug.Log("Erosion Done!");
     }
@@ -189,7 +304,7 @@ public class TerrainGenerator2 : MonoBehaviour
         RenderTexture.active = heightMap;
         readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0);
         readTex.Apply();
-        RenderTexture.active = null;
+        //RenderTexture.active = null;
 
         Vector2Int index = randomIndices[id];
         //heightMap[index] += float4(0, 1, 0, 0);
@@ -247,8 +362,8 @@ public class TerrainGenerator2 : MonoBehaviour
                 // Add the sediment to the four nodes of the current cell using bilinear interpolation
                 // Deposition is not distributed over a radius (like erosion) so that it can fill small pits
                 readTex.SetPixel(dropletIndex.x, dropletIndex.y, readTex.GetPixel(dropletIndex.x, dropletIndex.y) + new Color(0, amountToDeposit * (1 - cellOffsetX) * (1 - cellOffsetY), 0, 0));
-                readTex.SetPixel(dropletIndex.x+1, dropletIndex.y, readTex.GetPixel(dropletIndex.x+1, dropletIndex.y) + new Color(0, amountToDeposit * cellOffsetX * (1 - cellOffsetY), 0, 0));
-                readTex.SetPixel(dropletIndex.x + 1, dropletIndex.y, readTex.GetPixel(dropletIndex.x + 1, dropletIndex.y) +  new Color(0, amountToDeposit * (1 - cellOffsetX) * cellOffsetY, 0, 0));
+                readTex.SetPixel(dropletIndex.x + 1, dropletIndex.y, readTex.GetPixel(dropletIndex.x + 1, dropletIndex.y) + new Color(0, amountToDeposit * cellOffsetX * (1 - cellOffsetY), 0, 0));
+                readTex.SetPixel(dropletIndex.x + 1, dropletIndex.y, readTex.GetPixel(dropletIndex.x + 1, dropletIndex.y) + new Color(0, amountToDeposit * (1 - cellOffsetX) * cellOffsetY, 0, 0));
                 readTex.SetPixel(dropletIndex.x + 1, dropletIndex.y, readTex.GetPixel(dropletIndex.x + 1, dropletIndex.y) + new Color(0, amountToDeposit * cellOffsetX * cellOffsetY, 0, 0));
             }
             else

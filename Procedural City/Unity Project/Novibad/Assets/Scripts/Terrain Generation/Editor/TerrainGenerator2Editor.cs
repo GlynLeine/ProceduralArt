@@ -7,8 +7,8 @@ public class TerrainGenerator2Editor : Editor
 {
     TerrainGenerator2 terrainGenerator;
 
-    bool showHeightmap;
-    float displaySize = 100f;
+    bool showHeightmap = true;
+    float displaySize = .5f;
 
     bool autoUpdate = false;
     bool autoUpdateNoise = true;
@@ -45,7 +45,7 @@ public class TerrainGenerator2Editor : Editor
                 else
                     displayRect = GUILayoutUtility.GetAspectRect(1);
 
-                if (terrainGenerator.readTex != null)
+                if(terrainGenerator.readTex != null)
                     EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.readTex);
                 else
                     EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.heightMap);
@@ -54,10 +54,64 @@ public class TerrainGenerator2Editor : Editor
             }
         }
 
-        DrawPropertiesExcluding(serializedObject, "m_Script");
-        serializedObject.ApplyModifiedProperties();
+        EditorGUI.BeginChangeCheck();
 
+        SerializedProperty property = serializedObject.GetIterator();
+        while(property.NextVisible(true))
+        {
+            EditorGUILayout.PropertyField(property);
 
+            if (property.name == "uvScale")
+                break;
+        }
+
+        if (!autoUpdate && GUILayout.Button("Generate mesh"))
+        {
+            terrainGenerator.GenerateMesh();
+        }
+
+        while (property.NextVisible(true))
+        {
+            if (property.name == "seed")
+            {
+                EditorGUILayout.BeginHorizontal();
+                float labelWidth = EditorGUIUtility.labelWidth;
+                EditorGUIUtility.labelWidth = 0.000000000001f;
+                EditorGUILayout.LabelField("Seed");
+                EditorGUIUtility.labelWidth = labelWidth;
+
+                if (GUILayout.Button("Randomize seed", GUILayout.MaxHeight(15f)))
+                    terrainGenerator.seed = Random.Range(int.MinValue, int.MaxValue);
+
+                terrainGenerator.seed = EditorGUILayout.IntField(terrainGenerator.seed);
+
+                EditorGUILayout.EndHorizontal();
+                break;
+            }
+
+            if (property.name != "m_Script")
+                EditorGUILayout.PropertyField(property);
+        }
+
+        if (!autoUpdate && GUILayout.Button("Generate noise map"))
+        {
+            terrainGenerator.GenerateHeightMap();
+        }
+
+        while (property.NextVisible(true))
+        {
+            EditorGUILayout.PropertyField(property);
+        }
+
+        bool changed = EditorGUI.EndChangeCheck();
+
+        if (!autoUpdate && terrainGenerator.heightMap != null && GUILayout.Button("Apply erosion"))
+        {
+            terrainGenerator.ApplyErosion();
+        }
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
         if (autoUpdate)
         {
             if (GUILayout.Button("Turn off auto update"))
@@ -65,12 +119,14 @@ public class TerrainGenerator2Editor : Editor
                 autoUpdate = false;
             }
 
+            EditorGUILayout.BeginHorizontal();
+
             if (!autoUpdateNoise)
             {
-                if (GUILayout.Button("Automatically update heightmap"))
+                if (GUILayout.Button("Automatically update noise map"))
                     autoUpdateNoise = true;
             }
-            else if (GUILayout.Button("Stop automatically updating heightmap"))
+            else if (GUILayout.Button("Stop automatically updating noise map"))
                 autoUpdateNoise = false;
 
             if (!autoUpdateErosion)
@@ -81,11 +137,16 @@ public class TerrainGenerator2Editor : Editor
             else if (GUILayout.Button("Stop automatically updating erosion"))
                 autoUpdateErosion = false;
 
-            if (autoUpdateNoise)
-                terrainGenerator.ApplyNoiseHeight();
+            EditorGUILayout.EndHorizontal();
 
-            if (terrainGenerator.heightMap != null && autoUpdateErosion)
-                terrainGenerator.ApplyErosion();
+            if (changed)
+            {
+                if (autoUpdateNoise)
+                    terrainGenerator.GenerateHeightMap();
+
+                if (terrainGenerator.heightMap != null && autoUpdateErosion)
+                    terrainGenerator.ApplyErosion();
+            }
         }
         else
         {
@@ -93,22 +154,14 @@ public class TerrainGenerator2Editor : Editor
             {
                 autoUpdate = true;
             }
-
-            if (GUILayout.Button("Generate heightmap"))
-            {
-                terrainGenerator.GenerateHeightMap();
-            }
-
-            if (terrainGenerator.heightMap != null && GUILayout.Button("Apply erosion"))
-            {
-                terrainGenerator.ApplyErosion();
-            }
         }
 
         if (terrainGenerator.heightMap != null && GUILayout.Button("Destroy heightmap"))
         {
             terrainGenerator.heightMap = null;
         }
+
+        serializedObject.ApplyModifiedProperties();
     }
 
     void OnEnable()
