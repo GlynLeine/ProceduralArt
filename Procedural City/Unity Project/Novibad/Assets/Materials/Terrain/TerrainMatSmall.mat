@@ -28,14 +28,20 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - Vector1_10B9FD53: 0.324
+    - Vector1_1278435: 0
     - Vector1_133AF341: 42.1
+    - Vector1_1DBF8BDA: 90
     - Vector1_1FABB4AB: 3.17
+    - Vector1_588F2B53: 0
     - Vector1_82633867: 2.19
     - Vector1_826FCD68: 1
     - Vector1_85C4AB26: 0.63
+    - Vector1_85EEE73F: 0.1
     - Vector1_B931E75F: 128
     - Vector1_E64BA340: 0.395
     - Vector1_E92B034A: 0
+    - Vector1_F8C126FF: 1
+    - Vector1_FC788855: 0.1
     - _CullMode: 2
     - _EnableHeightBlend: 0
     - _EnableInstancedPerPixelNormal: 1
@@ -64,6 +70,7 @@ Material:
     - Color_83BAAF83: {r: 0, g: 0.6835394, b: 0.9716981, a: 1}
     - Color_886AD0A8: {r: 0.5283019, g: 0.5283019, b: 0.5283019, a: 1}
     - Color_CA6ADD11: {r: 0.2214756, g: 0.5943396, b: 0.24176748, a: 1}
+    - Color_F5502398: {r: 0.38499996, g: 0.26494148, b: 0.10779997, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _GrassColour: {r: 0, g: 1, b: 0, a: 1}

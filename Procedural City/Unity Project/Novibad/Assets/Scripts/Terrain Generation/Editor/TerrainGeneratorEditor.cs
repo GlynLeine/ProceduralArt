@@ -2,10 +2,10 @@
 using UnityEditor;
 using UnityEngine;
 
-[CustomEditor(typeof(TerrainGenerator2))]
-public class TerrainGenerator2Editor : Editor
+[CustomEditor(typeof(TerrainGenerator))]
+public class TerrainGeneratorEditor : Editor
 {
-    TerrainGenerator2 terrainGenerator;
+    TerrainGenerator terrainGenerator;
 
     bool showHeightmap = true;
     float displaySize = .5f;
@@ -13,6 +13,7 @@ public class TerrainGenerator2Editor : Editor
     bool autoUpdate = false;
     bool autoUpdateNoise = true;
     bool autoUpdateErosion = false;
+    bool autoUpdateMesh = false;
 
     public override void OnInspectorGUI()
     {
@@ -37,6 +38,7 @@ public class TerrainGenerator2Editor : Editor
             if (showHeightmap)
             {
                 Rect displayRect;
+
                 if (displaySize < 1)
                 {
                     float layoutWidth = EditorGUIUtility.currentViewWidth - (EditorGUI.indentLevel + 2) * 10f;
@@ -44,11 +46,7 @@ public class TerrainGenerator2Editor : Editor
                 }
                 else
                     displayRect = GUILayoutUtility.GetAspectRect(1);
-
-                if(terrainGenerator.readTex != null)
-                    EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.readTex);
-                else
-                    EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.heightMap);
+                EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.heightMap);
 
                 EditorGUILayout.Space();
             }
@@ -57,18 +55,22 @@ public class TerrainGenerator2Editor : Editor
         EditorGUI.BeginChangeCheck();
 
         SerializedProperty property = serializedObject.GetIterator();
-        while(property.NextVisible(true))
+        while (property.NextVisible(true))
         {
             EditorGUILayout.PropertyField(property);
 
-            if (property.name == "uvScale")
+            if (property.name == "meshHeight")
                 break;
         }
 
-        if (!autoUpdate && GUILayout.Button("Generate mesh"))
+        bool changed = EditorGUI.EndChangeCheck();
+
+        if (terrainGenerator.heightMap != null && GUILayout.Button("Generate mesh"))
         {
             terrainGenerator.GenerateMesh();
         }
+
+        EditorGUI.BeginChangeCheck();
 
         while (property.NextVisible(true))
         {
@@ -93,21 +95,55 @@ public class TerrainGenerator2Editor : Editor
                 EditorGUILayout.PropertyField(property);
         }
 
-        if (!autoUpdate && GUILayout.Button("Generate noise map"))
+        changed = EditorGUI.EndChangeCheck() || changed;
+
+        if (GUILayout.Button("Generate noise map"))
         {
             terrainGenerator.GenerateHeightMap();
         }
+
+        EditorGUI.BeginChangeCheck();
+
+        while (property.NextVisible(true))
+        {
+            EditorGUILayout.PropertyField(property);
+            if (property.name == "inertia")
+                break;
+        }
+
+        changed = EditorGUI.EndChangeCheck() || changed;
+
+        if (terrainGenerator.eroding)
+        {
+            GUI.enabled = false;
+            GUILayout.Button("Apply erosion");
+            GUI.enabled = true;
+            if (GUILayout.Button("Cancel erosion"))
+                terrainGenerator.cancelErosion = true;
+        }
+        else if (terrainGenerator.heightMap != null && GUILayout.Button("Apply erosion"))
+        {
+            terrainGenerator.ApplyErosion();
+        }
+
+        EditorGUI.BeginChangeCheck();
 
         while (property.NextVisible(true))
         {
             EditorGUILayout.PropertyField(property);
         }
 
-        bool changed = EditorGUI.EndChangeCheck();
+        changed = EditorGUI.EndChangeCheck() || changed;
 
-        if (!autoUpdate && terrainGenerator.heightMap != null && GUILayout.Button("Apply erosion"))
+        if (terrainGenerator.eroding)
         {
-            terrainGenerator.ApplyErosion();
+            GUI.enabled = false;
+            GUILayout.Button("Apply denoise");
+            GUI.enabled = true;
+        }
+        else if (terrainGenerator.heightMap != null && GUILayout.Button("Apply denoise"))
+        {
+            terrainGenerator.ApplyDenoise();
         }
 
         EditorGUILayout.Space();
@@ -117,9 +153,9 @@ public class TerrainGenerator2Editor : Editor
             if (GUILayout.Button("Turn off auto update"))
             {
                 autoUpdate = false;
+                terrainGenerator.autoErode = false;
+                terrainGenerator.autoGenMesh = false;
             }
-
-            EditorGUILayout.BeginHorizontal();
 
             if (!autoUpdateNoise)
             {
@@ -132,20 +168,41 @@ public class TerrainGenerator2Editor : Editor
             if (!autoUpdateErosion)
             {
                 if (GUILayout.Button("Automatically update erosion"))
+                {
                     autoUpdateErosion = true;
+                    terrainGenerator.autoErode = true;
+                }
             }
             else if (GUILayout.Button("Stop automatically updating erosion"))
+            {
                 autoUpdateErosion = false;
+                terrainGenerator.autoErode = false;
+            }
 
-            EditorGUILayout.EndHorizontal();
+            if (!autoUpdateMesh)
+            {
+                if (GUILayout.Button("Automatically update mesh"))
+                {
+                    autoUpdateMesh = true;
+                    terrainGenerator.autoGenMesh = true;
+                }
+            }
+            else if (GUILayout.Button("Stop automatically updating mesh"))
+            {
+                autoUpdateMesh = false;
+                terrainGenerator.autoGenMesh = false;
+            }
 
             if (changed)
             {
                 if (autoUpdateNoise)
                     terrainGenerator.GenerateHeightMap();
 
-                if (terrainGenerator.heightMap != null && autoUpdateErosion)
+                if (terrainGenerator.heightMap != null && autoUpdateErosion && !terrainGenerator.eroding)
                     terrainGenerator.ApplyErosion();
+
+                if (terrainGenerator.heightMap != null && autoUpdateMesh && !autoUpdateErosion)
+                    terrainGenerator.GenerateMesh();
             }
         }
         else
@@ -153,6 +210,10 @@ public class TerrainGenerator2Editor : Editor
             if (GUILayout.Button("Turn on auto update"))
             {
                 autoUpdate = true;
+                if (autoUpdateErosion)
+                    terrainGenerator.autoErode = true;
+                if(autoUpdateMesh)
+                    terrainGenerator.autoGenMesh = true;
             }
         }
 
@@ -166,7 +227,7 @@ public class TerrainGenerator2Editor : Editor
 
     void OnEnable()
     {
-        terrainGenerator = (TerrainGenerator2)target;
+        terrainGenerator = (TerrainGenerator)target;
         Tools.hidden = true;
     }
 

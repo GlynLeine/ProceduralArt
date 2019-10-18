@@ -1,44 +1,32 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSTerrain
 
-struct Octave
-{
-    float2 offset;
-    float2 scale;
-    float height;
-};
-
-static const float PI = 3.14159265359f;
-
-RWStructuredBuffer<float3> vertices;
-RWStructuredBuffer<Octave> octaves;
-float dimension;
-uint resolution;
+RWTexture2D<float4> heightMap;
+RWStructuredBuffer<float2> randomOffsets;
+int layers;
+float persistence;
+float baseRoughness;
+float roughness;
+int resolution;
 
 #include "Assets/Resources/Compute/SimplexNoise.compute"
-
-int CalcIndex(uint3 id)
-{
-    return id.x * resolution + id.y;
-}
 
 [numthreads(32, 32, 1)]
 void CSTerrain(uint3 id : SV_DispatchThreadID)
 {
-    uint octaveCount;
-    uint stride;
-    octaves.GetDimensions(octaveCount, stride);
+    float weight = 1;
+    float combinedWeight = 0;
+    float scale = baseRoughness;
 
-    int index = CalcIndex(id);
-    float x = vertices[index].x;
-    float y = 0;
-    float z = vertices[index].z;
+    float4 color = float4(0, 0, 0, 0);
 
-    for (unsigned int o = 0; o < octaveCount; o++)
+    for (int i = 0; i < layers; i++)
     {
-        float noise = pnoise(float2((x * octaves[o].scale.x + octaves[o].offset.x) / dimension, (z * octaves[o].scale.y + octaves[o].offset.y) / dimension));
-        y += noise * octaves[o].height;
+        color.r += snoise(id.xy / ((float) resolution) * scale + randomOffsets[i]) * weight;
+        combinedWeight += weight;
+        weight *= persistence;
+        scale *= roughness;
     }
 
-    vertices[index] = float3(x, y, z);
+    heightMap[id.xy] = color / combinedWeight;
 }
