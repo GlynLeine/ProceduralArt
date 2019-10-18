@@ -107,8 +107,8 @@ public class TerrainGeneratorEditor : Editor
         while (property.NextVisible(true))
         {
             EditorGUILayout.PropertyField(property);
-            if (property.name == "inertia")
-                break;
+            //if (property.name == "inertia")
+            //    break;
         }
 
         changed = EditorGUI.EndChangeCheck() || changed;
@@ -126,25 +126,25 @@ public class TerrainGeneratorEditor : Editor
             terrainGenerator.ApplyErosion();
         }
 
-        EditorGUI.BeginChangeCheck();
+        //EditorGUI.BeginChangeCheck();
 
-        while (property.NextVisible(true))
-        {
-            EditorGUILayout.PropertyField(property);
-        }
+        //while (property.NextVisible(true))
+        //{
+        //    EditorGUILayout.PropertyField(property);
+        //}
 
-        changed = EditorGUI.EndChangeCheck() || changed;
+        //changed = EditorGUI.EndChangeCheck() || changed;
 
-        if (terrainGenerator.eroding)
-        {
-            GUI.enabled = false;
-            GUILayout.Button("Apply denoise");
-            GUI.enabled = true;
-        }
-        else if (terrainGenerator.heightMap != null && GUILayout.Button("Apply denoise"))
-        {
-            terrainGenerator.ApplyDenoise();
-        }
+        //if (terrainGenerator.eroding)
+        //{
+        //    GUI.enabled = false;
+        //    GUILayout.Button("Apply denoise");
+        //    GUI.enabled = true;
+        //}
+        //else if (terrainGenerator.heightMap != null && GUILayout.Button("Apply denoise"))
+        //{
+        //    terrainGenerator.ApplyDenoise();
+        //}
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);

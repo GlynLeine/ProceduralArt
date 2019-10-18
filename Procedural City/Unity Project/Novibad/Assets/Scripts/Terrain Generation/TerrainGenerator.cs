@@ -59,7 +59,7 @@ public class TerrainGenerator : MonoBehaviour
     private int erosionKernel;
     private int denoiseKernel;
 
-    //[HideInInspector]
+    [HideInInspector]
     public bool eroding = false;
     [HideInInspector]
     public bool autoErode;
@@ -384,6 +384,8 @@ public class TerrainGenerator : MonoBehaviour
         eroding = false;
 
         Debug.Log("Erosion done!");
+
+        ApplyDenoise();
 
         if (autoGenMesh)
             GenerateMesh();

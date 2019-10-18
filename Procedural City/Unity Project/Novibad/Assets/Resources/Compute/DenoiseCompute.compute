@@ -8,35 +8,45 @@ int resolution;
 [numthreads(32, 32, 1)]
 void CSDenoise(uint3 id : SV_DispatchThreadID)
 {
-	if (id.x == 0 || id.y == 0 || id.x == (uint)resolution - 1 || id.y == (uint)resolution - 1)
-		return;
+    float currentHeight = heightMap[id.xy].r;
 
-	float currentHeight = heightMap[id.xy].r;
-	float averageHeight = 0;
+    if (id.x != 0 && id.y != 0 && id.x != (uint) resolution - 1 && id.y != (uint) resolution - 1)
+    {
+        float averageHeight = 0;
 
-	int i = 0;
-	int x = -1;
-	int y = -1;
-	for (x = -1; x <= 1; x++)
-		for (y = -1; y <= 1; y++, i++)
-		{
-			float height = heightMap[id.xy + int2(x, y)].r;
+        int i = 0;
+        int x = -1;
+        int y = -1;
+        for (x = -1; x <= 1; x++)
+            for (y = -1; y <= 1; y++, i++)
+            {
+                float height = heightMap[id.xy + int2(x, y)].r;
 
-			if (x != 0 && y != 0)
-				averageHeight += height;
-		}
+                averageHeight += height;
+            }
 
-	averageHeight /= 8;
+        averageHeight -= currentHeight;
+        averageHeight /= 8.0;
 
-	if (currentHeight < averageHeight)
-	{
-		float diff = averageHeight - currentHeight;
+        if (currentHeight < averageHeight)
+        {
+            float diff = averageHeight - currentHeight;
 
-		if (diff < threshold)
-			currentHeight += diff * 0.1;
-	}
+            if (diff > threshold)
+                currentHeight += diff * 0.1;
+        }
+        else if (currentHeight > averageHeight)
+        {
+            float diff = currentHeight - averageHeight;
 
-	float4 color = heightMap[id.xy];
-	heightMap[id.xy] = float4(currentHeight, color.g, currentHeight, color.a);
+            if (diff > threshold)
+                currentHeight -= diff * 0.1;
+        }
+    }
+
+    AllMemoryBarrierWithGroupSync();
+
+    float4 color = heightMap[id.xy];
+    heightMap[id.xy] = float4(currentHeight, color.g, color.b, color.a);
 
 }
