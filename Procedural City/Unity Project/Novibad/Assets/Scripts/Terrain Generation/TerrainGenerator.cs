@@ -29,19 +29,28 @@ public class TerrainGenerator : MonoBehaviour
 
     public int maximumDropletLifeTime = 30;
     public float sedimentCapacityFactor = 3;
+    [Range(0, 0.1f)]
     public float minimumSedimentCapacity = .01f;
+    [Range(0.000001f, 1f)]
     public float depositSpeed = 0.3f;
+    [Range(0.000001f, 1)]
     public float erosionSpeed = 0.3f;
-
+    [Range(0, 1)]
     public float evaporationSpeed = .01f;
+    [Range(1, 10)]
     public float gravity = 4;
     public float initialSpeed = 1;
     public float initialWaterVolume = 1;
     [Range(0, 1)]
     public float inertia = 0.3f;
+    public float waterHeight = 0.365f;
+    [Range(0, 1)]
+    public float waterDampening = 0.9f;
 
     [Header("Denoise Settings")]
     public float threshold = 1f;
+    [Range(0, 1)]
+    public float weight = 0.1f;
     public int denoiseItterations = 1;
 
     private Mesh mesh;
@@ -296,6 +305,9 @@ public class TerrainGenerator : MonoBehaviour
         erosionComputeShader.SetFloat("gravity", gravity);
         erosionComputeShader.SetFloat("startSpeed", initialSpeed);
         erosionComputeShader.SetFloat("startWater", initialWaterVolume);
+        erosionComputeShader.SetFloat("terrainHeight", 1f);
+        erosionComputeShader.SetFloat("waterHeight", waterHeight);
+        erosionComputeShader.SetFloat("waterDampening", waterDampening);
 
         Debug.Log("Starting erosion...");
         StartCoroutine(Erode());
@@ -396,6 +408,7 @@ public class TerrainGenerator : MonoBehaviour
         denoiseComputeShader.SetTexture(denoiseKernel, "heightMap", heightMap);
         denoiseComputeShader.SetFloat("threshold", threshold);
         denoiseComputeShader.SetInt("resolution", resolution);
+        denoiseComputeShader.SetFloat("weight", weight);
 
         int dispatchGroupSize = resolution / 32;
         for (int i = 0; i < denoiseItterations; i++)

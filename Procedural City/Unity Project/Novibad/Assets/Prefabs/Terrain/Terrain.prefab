@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1534779054190563251
+--- !u!1 &3332836662558443242
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6318483982745567518}
-  - component: {fileID: 8072185493304056624}
-  - component: {fileID: 40440153813221903}
+  - component: {fileID: 3332836662558443244}
+  - component: {fileID: 3332836662558443243}
+  - component: {fileID: 3332836662558443246}
+  - component: {fileID: 3332836662558443245}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -18,94 +19,82 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6318483982745567518
+--- !u!4 &3332836662558443244
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1534779054190563251}
+  m_GameObject: {fileID: 3332836662558443242}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0}
+  m_LocalPosition: {x: 48.97307, y: 0, z: 170.82532}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8072185493304056624
+--- !u!114 &3332836662558443243
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1534779054190563251}
+  m_GameObject: {fileID: 3332836662558443242}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 045929fa2ed5ed042ae8b3bebbd647e5, type: 3}
+  m_Script: {fileID: 11500000, guid: 74588dc5737ef9f488de3bc0e0f16652, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  updateInEditor: 0
-  dimension: 160
-  uvScale: 160
-  octaves:
-  - offset: {x: 193.48, y: 133}
-    scale: {x: 2, y: 2}
-    height: 11.89
-  - offset: {x: 0, y: 0}
-    scale: {x: 1, y: 1}
-    height: 13.92
-  - offset: {x: 238.03, y: 151.68}
-    scale: {x: 30, y: 30}
-    height: 0.89
-  - offset: {x: 0, y: 0}
-    scale: {x: 20, y: 20}
-    height: 0.2
-  - offset: {x: 35.13, y: 0}
-    scale: {x: 100, y: 100}
-    height: 0.09
-  - offset: {x: 39.05, y: 85.5}
-    scale: {x: 5, y: 4.9}
-    height: 11.1
-  - offset: {x: 39.05, y: 85.5}
-    scale: {x: 150, y: 150}
-    height: 0.08
-  - offset: {x: 456, y: 654}
-    scale: {x: 300, y: 300}
-    height: 0.05
+  heightMap: {fileID: 0}
+  readTex: {fileID: 0}
   resolution: 1024
-  seed: 0
-  erodeInEditor: 0
-  erosionIterationCount: 50176
-  erosionBrushRadius: 3
-  maximumDropletLifeTime: 100
+  dimensions: 160
+  uvScale: 160
+  meshHeight: 35
+  layers: 20
+  persistence: 0.326
+  baseRoughness: 1
+  roughness: 2.4
+  seed: 1806910767
+  erosionIterationCount: 499712
+  erosionRadius: 5
+  maximumDropletLifeTime: 1024
   sedimentCapacityFactor: 3
-  minSedimentCapacity: 0.01
-  depositSpeed: 0.3
-  erosionSpeed: 0.3
-  evaporationSpeed: 0.01
-  gravity: 4
-  startSpeed: 1
-  startWater: 1
-  inertia: 0.3
-  mesh: {fileID: 0}
---- !u!23 &40440153813221903
+  minimumSedimentCapacity: 0
+  depositSpeed: 0.005
+  erosionSpeed: 0.005
+  evaporationSpeed: 0.001
+  gravity: 9.8
+  initialSpeed: 1
+  initialWaterVolume: 15
+  inertia: 0.08
+  waterHeight: 0.365
+  waterDampening: 0.01
+  threshold: 0.001
+  weight: 0
+  denoiseItterations: 0
+  eroding: 0
+  autoErode: 1
+  autoGenMesh: 1
+  cancelErosion: 0
+--- !u!23 &3332836662558443246
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1534779054190563251}
+  m_GameObject: {fileID: 3332836662558443242}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
-  m_DynamicOccludee: 0
-  m_MotionVectors: 0
+  m_DynamicOccludee: 1
+  m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e9d5b8a5ac263a241bd8447dd7488444, type: 2}
+  - {fileID: 2100000, guid: c6bb93d4b3f53394a86b7481cd49647e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -125,3 +114,11 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+--- !u!33 &3332836662558443245
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3332836662558443242}
+  m_Mesh: {fileID: 0}

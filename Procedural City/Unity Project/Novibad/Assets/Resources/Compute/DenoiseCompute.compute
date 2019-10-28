@@ -4,11 +4,12 @@ RWTexture2D<float4> heightMap;
 
 float threshold;
 int resolution;
+float weight;
 
 [numthreads(32, 32, 1)]
 void CSDenoise(uint3 id : SV_DispatchThreadID)
 {
-    float currentHeight = heightMap[id.xy].r;
+    float currentHeight = max(0, min(1, heightMap[id.xy].r));
 
     if (id.x != 0 && id.y != 0 && id.x != (uint) resolution - 1 && id.y != (uint) resolution - 1)
     {
@@ -33,14 +34,14 @@ void CSDenoise(uint3 id : SV_DispatchThreadID)
             float diff = averageHeight - currentHeight;
 
             if (diff > threshold)
-                currentHeight += diff * 0.1;
+                currentHeight += diff * weight;
         }
         else if (currentHeight > averageHeight)
         {
             float diff = currentHeight - averageHeight;
 
             if (diff > threshold)
-                currentHeight -= diff * 0.1;
+                currentHeight -= diff * weight;
         }
     }
 

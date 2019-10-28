@@ -16,102 +16,108 @@ float minSedimentCapacity;
 float depositSpeed;
 float erodeSpeed;
 
+float waterHeight;
+float waterDampening;
+
 float evaporateSpeed;
 float gravity;
 float startSpeed;
 float startWater;
 
-float3 CalculateHeightAndGradient(float posX, float posY)
+float3 CalculateHeightAndGradient(float2 position)
 {
-	int coordX = (int)posX;
-	int coordY = (int)posY;
+    int2 index = int2((int) position.x, (int) position.y);
 
-	float x = posX - coordX;
-	float y = posY - coordY;
+    float2 offset = float2(position.x - index.x, position.y - index.y);
 
-	int2 nodeIndexNW = int2(coordY, coordX);
-	float heightNW = heightMap[nodeIndexNW].r;
-	float heightNE = heightMap[nodeIndexNW + int2(0, 1)].r;
-	float heightSW = heightMap[nodeIndexNW + int2(1, 0)].r;
-	float heightSE = heightMap[nodeIndexNW + int2(1, 1)].r;
+    float heightNW = heightMap[index].r;
+    float heightNE = heightMap[index + int2(0, 1)].r;
+    float heightSW = heightMap[index + int2(1, 0)].r;
+    float heightSE = heightMap[index + int2(1, 1)].r;
 
-	float gradientX = (heightNE - heightNW) * (1 - y) + (heightSE - heightSW) * y;
-	float gradientY = (heightSW - heightNW) * (1 - x) + (heightSE - heightNE) * x;
+    float2 gradient;
+    gradient.x = (heightSW - heightNW) * (1 - offset.x) + (heightSE - heightNE) * offset.x;
+    gradient.y = (heightNE - heightNW) * (1 - offset.y) + (heightSE - heightSW) * offset.y;
 
-	float height = heightNW * (1 - x) * (1 - y) + heightNE * x * (1 - y) + heightSW * (1 - x) * y + heightSE * x * y;
+    float height = heightNW * (1 - offset.x) * (1 - offset.y) + heightNE * offset.x * (1 - offset.y) + heightSW * (1 - offset.x) * offset.y + heightSE * offset.x * offset.y;
 
-	return float3(gradientX, gradientY, height);
+    return float3(gradient, height);
 }
 
 [numthreads(1024, 1, 1)]
 void CSErosion(uint3 id : SV_DispatchThreadID)
 {
-	int2 index = randomIndices[id.x];
-	float posX = index.x + 0.5;
-	float posY = index.y + 0.5;
-	float dirX = 0;
-	float dirY = 0;
-	float speed = startSpeed;
-	float water = startWater;
-	float sediment = 0;
+    int2 pixelIndex = randomIndices[id.x];
+    float2 position = float2(pixelIndex.x + 0.5, pixelIndex.y + 0.5);
+    float2 direction = float2(0, 0);
+    float speed = startSpeed;
+    float water = startWater;
+    float sediment = 0;
 
-	for (int lifetime = 0; lifetime < maxLifetime; lifetime++)
-	{
-		int nodeX = (int)posX;
-		int nodeY = (int)posY;
-		int2 dropletIndex = int2(nodeY, nodeX);
+    for (int lifetime = 0; lifetime < maxLifetime; lifetime++)
+    {
+        pixelIndex = int2((int) position.x, (int) position.y);
 
-		float cellOffsetX = posX - nodeX;
-		float cellOffsetY = posY - nodeY;
+        float2 dropletOffset = float2(position.x - pixelIndex.x, position.y - pixelIndex.y);
 
-		float3 heightAndGradient = CalculateHeightAndGradient(posX, posY);
+        float3 heightAndGradient = CalculateHeightAndGradient(position);
 
-		dirX = (dirX * inertia - heightAndGradient.x * (1 - inertia));
-		dirY = (dirY * inertia - heightAndGradient.y * (1 - inertia));
+        direction.x = (direction.x * inertia - heightAndGradient.x * (1 - inertia));
+        direction.y = (direction.y * inertia - heightAndGradient.y * (1 - inertia));
 
-		float len = max(0.01, sqrt(dirX * dirX + dirY * dirY));
-		dirX /= len;
-		dirY /= len;
-		posX += dirX;
-		posY += dirY;
+        float dirLen = length(direction);
+        if (dirLen == 0)
+            break;
 
-		if ((dirX == 0 && dirY == 0) || posX < 0 || posX > resolution - 1 || posY < 0 || posY > resolution - 1)
-		{
-			break;
-		}
+        direction /= dirLen;
+        direction *= 0.5;
+        position += direction;
 
-		float newHeight = CalculateHeightAndGradient(posX, posY).z;
-		float deltaHeight = newHeight - heightAndGradient.z;
+        if (position.x < 0 || position.x > resolution - 1 || position.y < 0 || position.y > resolution - 1)
+            break;
 
-		float sedimentCapacity = max(-deltaHeight * speed * water * sedimentCapacityFactor, minSedimentCapacity);
+        float newHeight = CalculateHeightAndGradient(position).z;
+        float deltaHeight = newHeight - heightAndGradient.z;
 
-		if (sediment > sedimentCapacity || deltaHeight > 0)
-		{
-			float amountToDeposit = (deltaHeight > 0) ? min(deltaHeight, sediment) : (sediment - sedimentCapacity) * depositSpeed;
-			sediment -= amountToDeposit;
+        float sedimentCapacity = max(-deltaHeight * speed * water * sedimentCapacityFactor, minSedimentCapacity);
 
-			heightMap[dropletIndex] += float4(amountToDeposit * (1 - cellOffsetX) * (1 - cellOffsetY), 0, 0, 0);
-			heightMap[dropletIndex + int2(1, 0)] += float4(amountToDeposit *      cellOffsetX  * (1 - cellOffsetY), 0, 0, 0);
-			heightMap[dropletIndex + int2(0, 1)] += float4(amountToDeposit * (1 - cellOffsetX) *      cellOffsetY, 0, 0, 0);
-			heightMap[dropletIndex + int2(1, 1)] += float4(amountToDeposit *      cellOffsetX  *      cellOffsetY, 0, 0, 0);
-		}
-		else
-		{
-			float amountToErode = min((sedimentCapacity - sediment) * erodeSpeed, -deltaHeight);
+        if (sediment > sedimentCapacity || deltaHeight >= 0 || heightAndGradient.z < waterHeight)
+        {
+            //heightMap[pixelIndex] += float4(0, 1, 0, 0);
+            float amountToDeposit = max((deltaHeight >= 0) ? min(deltaHeight, sediment * depositSpeed) : (sediment - sedimentCapacity) * depositSpeed, 0);
+            sediment -= amountToDeposit;
 
-			for (int i = 0; i < brushLength; i++)
-			{
-				int2 erodeIndex = dropletIndex + brushIndices[i];
+            heightMap[pixelIndex] += float4(amountToDeposit * (1 - dropletOffset.x) * (1 - dropletOffset.y), 0, 0, 0);
+            heightMap[pixelIndex + int2(1, 0)] += float4(amountToDeposit * dropletOffset.x * (1 - dropletOffset.y), 0, 0, 0);
+            heightMap[pixelIndex + int2(0, 1)] += float4(amountToDeposit * (1 - dropletOffset.x) * dropletOffset.y, 0, 0, 0);
+            heightMap[pixelIndex + int2(1, 1)] += float4(amountToDeposit * dropletOffset.x * dropletOffset.y, 0, 0, 0);
+        }
+        else
+        {
+            //heightMap[pixelIndex] += float4(0, 0, 1, 0);
+            float amountToErode = max(min((sedimentCapacity - sediment) * erodeSpeed, -deltaHeight), 0);
 
-				float weightedErodeAmount = amountToErode * brushWeights[i];
-				float deltaSediment = (heightMap[erodeIndex].r < weightedErodeAmount) ? heightMap[erodeIndex].r : weightedErodeAmount;
-				heightMap[erodeIndex] -= float4(deltaSediment, 0, 0, 0);
+            for (int i = 0; i < brushLength; i++)
+            {
+                int2 erodeIndex = pixelIndex + brushIndices[i];
 
-				sediment += deltaSediment;
-			}
-		}
+                float weightedErodeAmount = amountToErode * brushWeights[i];
+                float deltaSediment = (heightMap[erodeIndex].r < weightedErodeAmount) ? heightMap[erodeIndex].r : weightedErodeAmount;
+                heightMap[erodeIndex] -= float4(deltaSediment, 0, 0, 0);
 
-		speed = sqrt(max(0, speed * speed + deltaHeight * gravity));
-		water *= (1 - evaporateSpeed);
-	}
+                sediment += deltaSediment;
+            }
+        }
+
+        if (heightAndGradient.z > waterHeight)
+        {
+            speed = sqrt(max(0, speed * speed + deltaHeight * gravity));
+            water *= (1 - evaporateSpeed);
+        }
+        else
+        {
+            speed = max(0, speed);
+            speed *= 1.0-waterDampening;
+        }
+    }
 }
