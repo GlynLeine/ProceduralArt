@@ -151,7 +151,7 @@ public class TerrainGenerator : MonoBehaviour
     {
         Vector3[] verts = new Vector3[verticesPerSide * verticesPerSide];
 
-        if (readTex.width != resolution)
+        if (readTex == null || readTex.width != resolution)
             readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
 
         RenderTexture.active = heightMap;

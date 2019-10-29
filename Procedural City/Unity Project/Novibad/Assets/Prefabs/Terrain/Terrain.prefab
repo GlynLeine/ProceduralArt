@@ -56,20 +56,20 @@ MonoBehaviour:
   baseRoughness: 1
   roughness: 2.4
   seed: 1806910767
-  erosionIterationCount: 499712
-  erosionRadius: 5
+  erosionIterationCount: 1000448
+  erosionRadius: 1
   maximumDropletLifeTime: 1024
   sedimentCapacityFactor: 3
   minimumSedimentCapacity: 0
-  depositSpeed: 0.005
-  erosionSpeed: 0.005
+  depositSpeed: 0.001
+  erosionSpeed: 0.001
   evaporationSpeed: 0.001
   gravity: 9.8
   initialSpeed: 1
-  initialWaterVolume: 15
-  inertia: 0.08
+  initialWaterVolume: 10
+  inertia: 0.3
   waterHeight: 0.365
-  waterDampening: 0.01
+  waterDampening: 0.1
   threshold: 0.001
   weight: 0
   denoiseItterations: 0
