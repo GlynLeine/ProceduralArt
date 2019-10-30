@@ -17,9 +17,12 @@ public class BuildingGeneratorEditor : Editor
 
         if (EditorGUI.EndChangeCheck())
         {
-            building.CalculateBounds();
+            building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
         }
+
+        if (GUILayout.Button("gen mesh"))
+            building.GenerateMesh();
     }
 
     void OnSceneGUI()
@@ -31,11 +34,8 @@ public class BuildingGeneratorEditor : Editor
         Vector3 axisStartWorld = new Vector3(building.allignmentAxisStart.x, 0, building.allignmentAxisStart.y);
         Vector3 axisEndWorld = new Vector3(building.allignmentAxisEnd.x, 0, building.allignmentAxisEnd.y);
 
-        axisStartWorld = Handles.DoPositionHandle(axisStartWorld, Quaternion.identity);
-        axisEndWorld = Handles.DoPositionHandle(axisEndWorld, Quaternion.identity);
-
-        building.allignmentAxisStart = new Vector2(axisStartWorld.x, axisStartWorld.z);
-        building.allignmentAxisEnd = new Vector2(axisEndWorld.x, axisEndWorld.z);
+        Vector3 axisNormal = (axisEndWorld - axisStartWorld).normalized;
+        axisNormal = new Vector3(-axisNormal.z, axisNormal.y, axisNormal.x);
 
         Handles.color = Color.white;
         Handles.DrawLine(axisStartWorld, axisEndWorld);
@@ -50,15 +50,28 @@ public class BuildingGeneratorEditor : Editor
             for (int i = 0; i < constraintVertexCount; i++)
             {
                 Vector3 pos = new Vector3(building.constraintBounds[i].x, 0, building.constraintBounds[i].y);
-                pos = Handles.DoPositionHandle(pos, Quaternion.identity);
+
+                Vector3 leftPos = new Vector3(building.constraintBounds[(i - 1 + constraintVertexCount) % constraintVertexCount].x, 0, building.constraintBounds[(i - 1 + constraintVertexCount) % constraintVertexCount].y);
+                Vector3 rightPos = new Vector3(building.constraintBounds[(i + 1) % constraintVertexCount].x, 0, building.constraintBounds[(i + 1) % constraintVertexCount].y);
+                Vector3 vertexNormal = ((leftPos - pos).normalized +  (rightPos - pos).normalized).normalized;
+
+                pos = Handles.DoPositionHandle(pos, Quaternion.LookRotation(vertexNormal, Vector3.up));
                 building.constraintBounds[i] = new Vector2(pos.x, pos.z);
                 Handles.DrawLine(new Vector3(building.constraintBounds[i].x, 0, building.constraintBounds[i].y), new Vector3(building.constraintBounds[(i + 1) % constraintVertexCount].x, 0, building.constraintBounds[(i + 1) % constraintVertexCount].y));
             }
         }
-
-        if (EditorGUI.EndChangeCheck())
+        else
         {
-            building.CalculateBounds();
+            axisStartWorld = Handles.DoPositionHandle(axisStartWorld, Quaternion.LookRotation(axisNormal, Vector3.up));
+            axisEndWorld = Handles.DoPositionHandle(axisEndWorld, Quaternion.LookRotation(axisNormal, Vector3.up));
+
+            building.allignmentAxisStart = new Vector2(axisStartWorld.x, axisStartWorld.z);
+            building.allignmentAxisEnd = new Vector2(axisEndWorld.x, axisEndWorld.z);
+        }
+
+        if (EditorGUI.EndChangeCheck() || building.transform.hasChanged)
+        {
+            building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
         }
     }

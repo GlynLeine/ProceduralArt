@@ -14,8 +14,10 @@ public class BuildingGenerator : MonoBehaviour
     public float prefferedRatio;
     public int height;
 
-    public GameObject wallPrefab;
-    public GameObject roofPrefab;
+    public MeshData wallData;
+    public MeshData roofData;
+    public MeshData roofCornerData;
+    public MeshData roofFacadeData;
 
     [ReadOnly]
     public Vector2[] buildingBounds;
@@ -25,13 +27,16 @@ public class BuildingGenerator : MonoBehaviour
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private Mesh mesh;
-    private Mesh wallMesh;
-    private Mesh roofMesh;
 
-    public void CalculateBounds()
+    public void CalculateBounds(bool useTransformPosition)
     {
         length = Mathf.FloorToInt(width / prefferedRatio);
         Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
+
+        if (useTransformPosition)
+            axisPosition = Vector2.Dot(new Vector2(transform.position.x, transform.position.z) - allignmentAxisStart, allignmentAxis) / Vector2.Distance(allignmentAxisStart, allignmentAxisEnd);
+
+
         Vector2 position = allignmentAxisStart + axisPosition * (allignmentAxisEnd - allignmentAxisStart);
         buildingBounds = new Vector2[] { position - allignmentAxis * 0.5f * width,
                                          position + allignmentAxis * 0.5f * width,
@@ -67,7 +72,7 @@ public class BuildingGenerator : MonoBehaviour
             }
         }
 
-        //        position += perpAxis * 0.5f * length;
+        transform.rotation = Quaternion.LookRotation(new Vector3(perpAxis.x, 0, perpAxis.y), Vector3.up);
         transform.position = new Vector3(position.x, 0, position.y);
     }
 
@@ -98,12 +103,6 @@ public class BuildingGenerator : MonoBehaviour
 
     public void GenerateMesh()
     {
-        int children = transform.childCount;
-        for (int i = 0; i < children; ++i)
-        {
-            DestroyImmediate(transform.GetChild(0).gameObject);
-        }
-
         if (meshFilter == null)
             meshFilter = gameObject.GetComponent<MeshFilter>();
         if (meshFilter == null)
@@ -118,67 +117,95 @@ public class BuildingGenerator : MonoBehaviour
         mesh = new Mesh();
         mesh.name = "Building Mesh";
 
-        if (wallMesh == null)
-        {
-            GameObject tempObject = Instantiate(wallPrefab);
-            wallMesh = tempObject.GetComponentInChildren<MeshFilter>().sharedMesh;
-            DestroyImmediate(tempObject);
-        }
-
-        if (roofMesh == null)
-        {
-            GameObject tempObject = Instantiate(roofPrefab);
-            roofMesh = tempObject.GetComponentInChildren<MeshFilter>().sharedMesh;
-            DestroyImmediate(tempObject);
-        }
-
         for (int floor = 0; floor < height; floor++)
-            if (floor < height - 1)
-                for (int i = 0; i < buildingBounds.Length; i++)
-                {
-                    Vector2 wallAxis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
-                    int wallLength = Mathf.RoundToInt(wallAxis.magnitude);
-                    wallAxis.Normalize();
+            for (int i = 0; i < buildingBounds.Length; i++)
+            {
+                Vector2 wallAxis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
+                int wallLength = Mathf.RoundToInt(wallAxis.magnitude);
+                wallAxis.Normalize();
 
-                    for (int j = 0; j < wallLength; j++)
+                for (int j = 0; j < wallLength; j++)
+                {
+                    Vector2 segmentPos = buildingBounds[i] + j * wallAxis;
+                    WeldMesh(meshRenderer, wallData.materials, mesh, wallData.mesh, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(-wallAxis.y, 0, wallAxis.x), Vector3.up), transform);
+                }
+            }
+
+        for (int perimeter = 0; perimeter < width / 2; perimeter++)
+            for (int i = 0; i < buildingBounds.Length; i++)
+            {
+                Vector2 roofAxis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
+                int roofLength = Mathf.RoundToInt(roofAxis.magnitude);
+                roofAxis.Normalize();
+
+                if (i == 0 || i == 2)
+                {
+                    
+                }
+                else
+                {
+                    Vector2 inwardAxis = new Vector2(-roofAxis.y, roofAxis.x);
+
+                    for (int j = 0; j < roofLength; j++)
                     {
-                        Vector2 segmentPos = buildingBounds[i] + (j + 0.5f) * wallAxis;
-                        WeldMesh(mesh, wallMesh, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(-wallAxis.y, 0, wallAxis.x), Vector3.up), transform);
+                        Vector2 segmentPos = buildingBounds[i] + j * roofAxis + inwardAxis * perimeter;
+                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-roofAxis.y, 0, roofAxis.x), Vector3.up), transform);
                     }
                 }
-            else
-                for (int x = 0; x < width; x++)
-                    for (int y = 0; y < length; y++)
-                    {
-                        Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
-                        Vector2 perpAxis = new Vector2(-allignmentAxis.y, allignmentAxis.x);
+                //    Vector2 cornerPos = buildingBounds[i] + (roofLength - perimeter) * roofAxis + inwardAxis * perimeter;
+                //    WeldMesh(meshRenderer, roofCornerData.materials, mesh, roofCornerData.mesh, new Vector3(cornerPos.x, height + perimeter, cornerPos.y), Quaternion.LookRotation(new Vector3(-roofAxis.y, 0, roofAxis.x), Vector3.up), transform);
+            }
 
-                        Vector2 position = buildingBounds[0] + (x + 0.5f) * allignmentAxis + (y + 0.5f) * perpAxis;
-                        WeldMesh(mesh, roofMesh, new Vector3(position.x, floor-0.5f, position.y), Quaternion.LookRotation(-Vector3.up, new Vector3(-allignmentAxis.y, 0, allignmentAxis.x)), transform);
-                    }
-
+        mesh.RecalculateBounds();
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
         meshFilter.mesh = mesh;
     }
 
-    public void WeldMesh(Mesh target, Mesh source, Vector3 position, Quaternion rotation, Transform parent)
+    public void WeldMesh(MeshRenderer meshRenderer, Material[] sourceMaterials, Mesh target, Mesh source, Vector3 position, Quaternion rotation, Transform parent)
     {
+        int submeshOffset = 0;
+        List<Material> materials = new List<Material>();
+
+        if (target.vertexCount > 0)
+        {
+            submeshOffset = target.subMeshCount;
+            target.subMeshCount += source.subMeshCount;
+
+            materials = new List<Material>(meshRenderer.sharedMaterials);
+        }
+
+        materials.AddRange(sourceMaterials);
+        meshRenderer.sharedMaterials = materials.ToArray();
+
+        int vertexOffset = target.vertexCount;
+
         List<Vector3> vertices = new List<Vector3>(target.vertices);
-        List<int> triangles = new List<int>(target.triangles);
-        List<Vector2> uvs0 = new List<Vector2>(target.uv);
-        List<Vector2> uvs1 = new List<Vector2>(target.uv2);
 
         for (int i = 0; i < source.vertexCount; i++)
             vertices.Add(parent.worldToLocalMatrix.MultiplyPoint3x4(rotation * source.vertices[i] + position));
 
-        for (int i = 0; i < source.triangles.Length; i++)
-            triangles.Add(source.triangles[i] + target.vertexCount);
+        List<Vector2> uvs0 = new List<Vector2>(target.uv);
+        List<Vector2> uvs1 = new List<Vector2>(target.uv2);
 
         uvs0.AddRange(source.uv);
         uvs1.AddRange(source.uv2);
 
         target.vertices = vertices.ToArray();
-        target.triangles = triangles.ToArray();
-        target.uv = uvs0.ToArray();
-        target.uv2 = uvs1.ToArray();
+
+        if (uvs0.Count == target.vertexCount)
+            target.uv = uvs0.ToArray();
+        if (uvs1.Count == target.vertexCount)
+            target.uv2 = uvs1.ToArray();
+
+        for (int i = 0; i < source.subMeshCount; i++)
+        {
+            int[] triangles = source.GetTriangles(i);
+
+            for (int j = 0; j < triangles.Length; j++)
+                triangles[j] += vertexOffset;
+
+            target.SetTriangles(triangles, submeshOffset + i);
+        }
     }
 }
