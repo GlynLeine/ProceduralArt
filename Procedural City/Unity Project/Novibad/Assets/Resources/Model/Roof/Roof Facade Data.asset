@@ -12,7 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46a27a164533a9c4d88edb94094fff9d, type: 3}
   m_Name: Roof Facade Data
   m_EditorClassIdentifier: 
-  prefab: {fileID: 1143001153558830727, guid: 5c2a2b6d90b92f84299a7db271c07a79, type: 3}
-  mesh: {fileID: 4300000, guid: 7a00efa14646b1f48b9ae75f0da5124f, type: 2}
-  materials:
-  - {fileID: 2100000, guid: 73c176f402d2c2f4d929aa5da7585d17, type: 2}
+  prefabs:
+  - {fileID: 1143001153558830727, guid: 5c2a2b6d90b92f84299a7db271c07a79, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 1143001153558830727, guid: 5c2a2b6d90b92f84299a7db271c07a79, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  meshes:
+  - {fileID: 4300000, guid: 950a6cec8e5b85842bff2c667e855825, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 4300000, guid: 3f405c896bd2a674fb13f52aa19bd28d, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}

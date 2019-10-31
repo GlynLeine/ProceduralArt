@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using UnityEditor;
 
 public class TerrainGenerator : MonoBehaviour
 {
@@ -106,6 +107,11 @@ public class TerrainGenerator : MonoBehaviour
             denoiseComputeShader = Resources.Load<ComputeShader>("Compute/DenoiseCompute");
             denoiseKernel = denoiseComputeShader.FindKernel("CSDenoise");
         }
+    }
+
+    public void SaveMesh()
+    {
+        MeshExporter.SaveMesh(this, mesh, mesh.name);
     }
 
     #region Mesh Generation
@@ -348,13 +354,12 @@ public class TerrainGenerator : MonoBehaviour
 
             randomIndexBuffer.Dispose();
 
-            Debug.Log(((float)dispatchCount / maximumDispatchCount * 100f) + "% done, main");
+            float progress = (float)dispatchCount / maximumDispatchCount * 100f;
+            if(EditorUtility.DisplayCancelableProgressBar("Eroding Terrain", progress + "% done", progress/100f))
+                cancelErosion = true;
 
             if (cancelErosion)
-            {
-                cancelErosion = false;
                 break;
-            }
 
             yield return null;
         }
@@ -379,22 +384,24 @@ public class TerrainGenerator : MonoBehaviour
 
             randomIndexBuffer.Dispose();
 
-            Debug.Log(((float)dispatchCount / maximumDispatchCount * 100f) + "% done, trail");
+            float progress = (float)dispatchCount / maximumDispatchCount * 100f;
+            if(EditorUtility.DisplayCancelableProgressBar("Eroding Terrain", progress + "% done", progress/100f))
+                cancelErosion = true;
 
             if (cancelErosion)
-            {
-                cancelErosion = false;
                 break;
-            }
 
             yield return null;
         }
+
+        cancelErosion = false;
 
         brushIndexBuffer.Dispose();
         brushWeightBuffer.Dispose();
 
         eroding = false;
 
+        EditorUtility.ClearProgressBar();
         Debug.Log("Erosion done!");
 
         ApplyDenoise();

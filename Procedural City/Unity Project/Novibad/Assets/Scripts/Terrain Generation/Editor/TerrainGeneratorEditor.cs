@@ -107,8 +107,6 @@ public class TerrainGeneratorEditor : Editor
         while (property.NextVisible(true))
         {
             EditorGUILayout.PropertyField(property);
-            //if (property.name == "inertia")
-            //    break;
         }
 
         changed = EditorGUI.EndChangeCheck() || changed;
@@ -125,26 +123,6 @@ public class TerrainGeneratorEditor : Editor
         {
             terrainGenerator.ApplyErosion();
         }
-
-        //EditorGUI.BeginChangeCheck();
-
-        //while (property.NextVisible(true))
-        //{
-        //    EditorGUILayout.PropertyField(property);
-        //}
-
-        //changed = EditorGUI.EndChangeCheck() || changed;
-
-        //if (terrainGenerator.eroding)
-        //{
-        //    GUI.enabled = false;
-        //    GUILayout.Button("Apply denoise");
-        //    GUI.enabled = true;
-        //}
-        //else if (terrainGenerator.heightMap != null && GUILayout.Button("Apply denoise"))
-        //{
-        //    terrainGenerator.ApplyDenoise();
-        //}
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
@@ -222,17 +200,20 @@ public class TerrainGeneratorEditor : Editor
             terrainGenerator.heightMap = null;
         }
 
+        if (GUILayout.Button(new GUIContent("Save mesh", "Saves mesh to an OBJ file and points shared mesh to that file instead of storing the mesh in the scene. (greatly improves scene file size.)")))
+            terrainGenerator.SaveMesh();
+
         serializedObject.ApplyModifiedProperties();
     }
 
     void OnEnable()
     {
         terrainGenerator = (TerrainGenerator)target;
-        Tools.hidden = true;
+        //Tools.hidden = true;
     }
 
     void OnDisable()
     {
-        Tools.hidden = false;
+        //Tools.hidden = false;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿using UnityEditor;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,10 +14,7 @@ public class BuildingGenerator : MonoBehaviour
     public float prefferedRatio;
     public int height;
 
-    public MeshData wallData;
-    public MeshData roofData;
-    public MeshData roofCornerData;
-    public MeshData roofFacadeData;
+    public BuildingTheme buildingTheme;
 
     [ReadOnly]
     public Vector2[] buildingBounds;
@@ -115,7 +112,7 @@ public class BuildingGenerator : MonoBehaviour
 
 
         mesh = new Mesh();
-        mesh.name = "Building Mesh";
+        mesh.name = gameObject.name + " Mesh";
 
         for (int floor = 0; floor < height; floor++)
             for (int i = 0; i < buildingBounds.Length; i++)
@@ -127,56 +124,104 @@ public class BuildingGenerator : MonoBehaviour
                 for (int j = 0; j < wallLength; j++)
                 {
                     Vector2 segmentPos = buildingBounds[i] + j * wallAxis;
+                    MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
                     WeldMesh(meshRenderer, wallData.materials, mesh, wallData.mesh, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(-wallAxis.y, 0, wallAxis.x), Vector3.up), transform);
                 }
             }
 
-        for (int perimeter = 0; perimeter < width / 2; perimeter++)
-            for (int i = 0; i < buildingBounds.Length; i++)
+        for (int i = 0; i < buildingBounds.Length; i++)
+        {
+            Vector2 axis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
+            Vector2 origin = buildingBounds[i];
+            int roofLength = Mathf.RoundToInt(axis.magnitude);
+            axis.Normalize();
+
+            Vector2 inwardAxis = new Vector2(-axis.y, axis.x);
+
+            if (i == 0 || i == 2)
             {
-                Vector2 roofAxis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
-                int roofLength = Mathf.RoundToInt(roofAxis.magnitude);
-                roofAxis.Normalize();
+                for (int perimeter = 0; perimeter < width / 2; perimeter++)
+                    for (int j = perimeter; j < roofLength - perimeter; j++)
+                    {
+                        Vector2 segmentPos = origin + j * axis - inwardAxis * 0.001f;
+                        MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.straight);
+                        WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                    }
 
-                if (i == 0 || i == 2)
                 {
-                    
+                    int index = width / 2;
+                    Vector2 segmentPos = origin + index * axis - inwardAxis * 0.001f;
+                    MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
+                    WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
                 }
-                else
-                {
-                    Vector2 inwardAxis = new Vector2(-roofAxis.y, roofAxis.x);
-
+            }
+            else
+            {
+                for (int perimeter = 0; perimeter < width / 2; perimeter++)
                     for (int j = 0; j < roofLength; j++)
                     {
-                        Vector2 segmentPos = buildingBounds[i] + j * roofAxis + inwardAxis * perimeter;
-                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-roofAxis.y, 0, roofAxis.x), Vector3.up), transform);
+                        Vector2 segmentPos = origin + j * axis + inwardAxis * perimeter - inwardAxis * 0.001f;
+                        MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
+                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                    }
+            }
+        }
+
+        List<(Vector2 origin, Vector2 axis, int length)> buildingSkeleton = new List<(Vector2 origin, Vector2 axis, int length)>();
+        List<Vector2> uniques = new List<Vector2>();
+        for (int i = 0; i < buildingBounds.Length; i++)
+        {
+            Vector2 normal = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
+            int length = Mathf.RoundToInt(normal.magnitude);
+            normal.Normalize();
+
+            if (!uniques.Contains(normal) && !uniques.Contains(-normal))
+            {
+                uniques.Add(normal);
+                buildingSkeleton.Add((buildingBounds[i], normal, length));
+            }
+        }
+
+        if (width % 2 == 1)
+        {
+            for (int i = 0; i < buildingSkeleton.Count; i++)
+            {
+                Vector2 axis = buildingSkeleton[i].axis;
+                Vector2 origin = buildingSkeleton[i].origin;
+                int length = buildingSkeleton[i].length;
+
+                int index = width / 2;
+                if (i != 0 && i != 2)
+                {
+                    Vector2 inwardAxis = new Vector2(-axis.y, axis.x);
+
+                    for (int j = 0; j < length; j++)
+                    {
+                        Vector2 segmentPos = buildingBounds[i] + j * axis + inwardAxis * index;
+                        MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.centeredStraight);
+                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
                     }
                 }
-                //    Vector2 cornerPos = buildingBounds[i] + (roofLength - perimeter) * roofAxis + inwardAxis * perimeter;
-                //    WeldMesh(meshRenderer, roofCornerData.materials, mesh, roofCornerData.mesh, new Vector3(cornerPos.x, height + perimeter, cornerPos.y), Quaternion.LookRotation(new Vector3(-roofAxis.y, 0, roofAxis.x), Vector3.up), transform);
             }
+        }
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
         mesh.RecalculateTangents();
+
         meshFilter.mesh = mesh;
     }
 
     public void WeldMesh(MeshRenderer meshRenderer, Material[] sourceMaterials, Mesh target, Mesh source, Vector3 position, Quaternion rotation, Transform parent)
     {
-        int submeshOffset = 0;
         List<Material> materials = new List<Material>();
 
         if (target.vertexCount > 0)
         {
-            submeshOffset = target.subMeshCount;
-            target.subMeshCount += source.subMeshCount;
-
             materials = new List<Material>(meshRenderer.sharedMaterials);
         }
-
-        materials.AddRange(sourceMaterials);
-        meshRenderer.sharedMaterials = materials.ToArray();
+        else
+            target.subMeshCount = 0;
 
         int vertexOffset = target.vertexCount;
 
@@ -200,12 +245,27 @@ public class BuildingGenerator : MonoBehaviour
 
         for (int i = 0; i < source.subMeshCount; i++)
         {
-            int[] triangles = source.GetTriangles(i);
+            List<int> triangles = new List<int>(source.GetTriangles(i));
 
-            for (int j = 0; j < triangles.Length; j++)
+            for (int j = 0; j < triangles.Count; j++)
                 triangles[j] += vertexOffset;
 
-            target.SetTriangles(triangles, submeshOffset + i);
+            Material material = sourceMaterials[i];
+
+            int submeshIndex = materials.IndexOf(material);
+            if (submeshIndex >= 0)
+            {
+                triangles.AddRange(target.GetTriangles(submeshIndex));
+                target.SetTriangles(triangles, submeshIndex);
+            }
+            else
+            {
+                target.subMeshCount++;
+                target.SetTriangles(triangles, target.subMeshCount - 1);
+                materials.Add(material);
+            }
         }
+
+        meshRenderer.sharedMaterials = materials.ToArray();
     }
 }

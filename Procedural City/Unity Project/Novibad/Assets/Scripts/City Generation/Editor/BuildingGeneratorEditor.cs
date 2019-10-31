@@ -20,9 +20,6 @@ public class BuildingGeneratorEditor : Editor
             building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
         }
-
-        if (GUILayout.Button("gen mesh"))
-            building.GenerateMesh();
     }
 
     void OnSceneGUI()
@@ -73,6 +70,8 @@ public class BuildingGeneratorEditor : Editor
         {
             building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
+
+            building.transform.hasChanged = false;
         }
     }
 }
