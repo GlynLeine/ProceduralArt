@@ -12,7 +12,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46a27a164533a9c4d88edb94094fff9d, type: 3}
   m_Name: Wall Data
   m_EditorClassIdentifier: 
-  prefab: {fileID: 2721662568379613393, guid: 4a32aac1dcc420d42be7e87296b472db, type: 3}
-  mesh: {fileID: 4300000, guid: 01bbc14dfc7bebb4d96e487a1a5d1f33, type: 2}
-  materials:
-  - {fileID: 2100000, guid: 73c176f402d2c2f4d929aa5da7585d17, type: 2}
+  prefabs:
+  - {fileID: 2721662568379613393, guid: 4a32aac1dcc420d42be7e87296b472db, type: 3}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  meshDataArray:
+  - vertices:
+    - {x: 0, y: 0, z: -3.0616168e-17}
+    - {x: 1, y: 0, z: -3.0616168e-17}
+    - {x: 0, y: 1, z: 3.0616168e-17}
+    - {x: 1, y: 1, z: 3.0616168e-17}
+    uv:
+    - {x: 0, y: 0}
+    - {x: 1, y: 0}
+    - {x: 0, y: 1}
+    - {x: 1, y: 1}
+    subMeshes:
+    - triangles: 000000000300000001000000030000000000000002000000
+    materials:
+    - {fileID: 2100000, guid: 73c176f402d2c2f4d929aa5da7585d17, type: 2}
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []
+  - vertices: []
+    uv: []
+    subMeshes: []
+    materials: []

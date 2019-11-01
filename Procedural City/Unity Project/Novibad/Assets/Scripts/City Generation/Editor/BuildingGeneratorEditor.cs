@@ -1,5 +1,7 @@
 ﻿using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [CustomEditor(typeof(BuildingGenerator))]
 public class BuildingGeneratorEditor : Editor
@@ -15,7 +17,7 @@ public class BuildingGeneratorEditor : Editor
 
         DrawDefaultInspector();
 
-        if (EditorGUI.EndChangeCheck())
+        if (EditorGUI.EndChangeCheck() | GUILayout.Button("Generate"))
         {
             building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
@@ -70,6 +72,8 @@ public class BuildingGeneratorEditor : Editor
         {
             building.CalculateBounds(building.transform.hasChanged);
             building.GenerateMesh();
+
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
 
             building.transform.hasChanged = false;
         }

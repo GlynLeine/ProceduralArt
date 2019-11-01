@@ -10,23 +10,20 @@ public enum SectionType
     straight, inWardCorner, outWardCorner, dot, centeredStraight, centeredCorner, centeredDot
 }
 
-[Serializable]
-public struct MaterialArray
-{
-    public Material[] materials;
-}
-
 [CreateAssetMenu(fileName = "New Section", menuName = "City Generation/Create Section Object")]
 public class SectionData : ScriptableObject
 {
     public GameObject[] prefabs;
 
-    public Mesh[] meshes;
-    public MaterialArray[] materialArrays;
+    public MeshData[] meshDataArray;
 
     public void FetchData()
     {
         SectionType[] sectionTypes = Enum.GetValues(typeof(SectionType)).Cast<SectionType>() as SectionType[];
+
+        if (meshDataArray == null || meshDataArray.Length < sectionTypes.Length)
+            meshDataArray = new MeshData[sectionTypes.Length];
+
         foreach (SectionType type in sectionTypes)
         {
             int index = (int)type;
@@ -36,17 +33,17 @@ public class SectionData : ScriptableObject
             GameObject tempObject = Instantiate(prefabs[index], Vector3.zero, Quaternion.identity);
             MeshFilter meshFilter = tempObject.GetComponentInChildren<MeshFilter>();
 
-            if(meshes == null || meshes.Length < sectionTypes.Length)
-                meshes = new Mesh[sectionTypes.Length];
-
-            if(materialArrays == null || materialArrays.Length < sectionTypes.Length)
-                materialArrays = new MaterialArray[sectionTypes.Length];
+            meshDataArray[index] = new MeshData();
 
             Mesh sourceMesh = meshFilter.sharedMesh;
+
             Mesh mesh = new Mesh();
             mesh.name = tempObject.name.Substring(0, tempObject.name.Length - 7) + " " + type.ToString() + " mesh";
+
             mesh.vertices = sourceMesh.vertices;
+
             mesh.subMeshCount = sourceMesh.subMeshCount;
+
             mesh.uv = sourceMesh.uv;
             mesh.uv2 = sourceMesh.uv2;
 
@@ -54,15 +51,12 @@ public class SectionData : ScriptableObject
                 mesh.SetTriangles(sourceMesh.GetTriangles(i), i);
 
             Matrix4x4 matrix = meshFilter.transform.localToWorldMatrix;
-            materialArrays[index].materials = tempObject.GetComponentInChildren<MeshRenderer>().sharedMaterials;
-
             Vector3[] vertices = mesh.vertices;
-
             for (int i = 0; i < mesh.vertexCount; i++)
                 vertices[i] = matrix.MultiplyPoint3x4(vertices[i]);
 
             mesh.vertices = vertices;
-            meshes[index] = mesh;
+            meshDataArray[index] = new MeshData(mesh, tempObject.GetComponentInChildren<MeshRenderer>().sharedMaterials);
 
             DestroyImmediate(tempObject);
         }

@@ -22,6 +22,10 @@ public class SectionDataEditor : Editor
             sectionData.prefabs[(int)type] = EditorGUILayout.ObjectField(type.ToString(), sectionData.prefabs[(int)type], typeof(GameObject), false) as GameObject;
 
         if (EditorGUI.EndChangeCheck() | GUILayout.Button("Fetch data"))
+        {
             (target as SectionData).FetchData();
+            EditorUtility.SetDirty(target);
+            AssetDatabase.SaveAssets();
+        }
     }
 }

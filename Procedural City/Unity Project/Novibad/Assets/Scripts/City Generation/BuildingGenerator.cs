@@ -1,5 +1,6 @@
-﻿using UnityEditor;
+﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class BuildingGenerator : MonoBehaviour
@@ -14,6 +15,9 @@ public class BuildingGenerator : MonoBehaviour
     public Vector2 allignmentAxisEnd;
     [HideInInspector]
     public float axisPosition;
+
+    [Header("Bounds Settings")]
+    public int seed;
     public int width;
     [Range(0.2f, 5)]
     public float prefferedRatio;
@@ -21,6 +25,22 @@ public class BuildingGenerator : MonoBehaviour
     [ReadOnly]
     public int length;
 
+    [Header("Shape Settings"), Range(0f, 100f)]
+    public float splitChance;
+    [Range(0.001f, 1f)]
+    public float widthScaleLowerBound;
+    [Range(0.001f, 1f)]
+    public float widthScaleUpperBound;
+    [Range(0.001f, 1f)]
+    public float lengthScaleLowerBound;
+    [Range(0.001f, 1f)]
+    public float lengthScaleUpperBound;
+    [Range(0.001f, 1f)]
+    public float heightScaleLowerBound;
+    [Range(0.001f, 1f)]
+    public float heigthScaleUpperBound;
+
+    [Header("Visuals Settings")]
     public BuildingTheme buildingTheme;
 
     [HideInInspector]
@@ -28,7 +48,24 @@ public class BuildingGenerator : MonoBehaviour
 
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
+
+    private MeshData meshData;
     private Mesh mesh;
+
+    private bool cancelGeneration = false;
+    private bool restartGeneration = false;
+    private Thread generationThread;
+    private Matrix4x4 baseTransformMatrix;
+
+    private struct Limb
+    {
+        public Vector2 axis;
+        public int length;
+        public int width;
+    }
+    private Limb[] skeleton;
+
+    private System.Random random;
 
     public void CalculateBounds(bool useTransformPosition)
     {
@@ -38,8 +75,10 @@ public class BuildingGenerator : MonoBehaviour
 
         if (width > (int)maxWidth)
             width = (int)maxWidth;
+        if (width < 1)
+            width = 1;
 
-        length = Mathf.FloorToInt(width / prefferedRatio);
+        length = Mathf.Max(1, Mathf.FloorToInt(width / prefferedRatio));
 
         if (useTransformPosition)
             axisPosition = Vector2.Dot(new Vector2(transform.position.x, transform.position.z) - allignmentAxisStart, allignmentAxis) / Vector2.Distance(allignmentAxisStart, allignmentAxisEnd);
@@ -67,13 +106,13 @@ public class BuildingGenerator : MonoBehaviour
                 Vector2 intersection;
                 if (LineSegmentsIntersection(constraintBounds[i], constraintBounds[(i + 1) % constraintBounds.Length], buildingBounds[1], buildingBounds[2], out intersection))
                 {
-                    length = Mathf.FloorToInt(Vector2.Distance(buildingBounds[1], intersection));
+                    length = Mathf.Max(1, Mathf.FloorToInt(Vector2.Distance(buildingBounds[1], intersection)));
                     buildingBounds[2] = buildingBounds[1] + perpAxis * length;
                     buildingBounds[3] = buildingBounds[0] + perpAxis * length;
                 }
                 if (LineSegmentsIntersection(constraintBounds[i], constraintBounds[(i + 1) % constraintBounds.Length], buildingBounds[0], buildingBounds[3], out intersection))
                 {
-                    length = Mathf.FloorToInt(Vector2.Distance(buildingBounds[0], intersection));
+                    length = Mathf.Max(1, Mathf.FloorToInt(Vector2.Distance(buildingBounds[0], intersection)));
                     buildingBounds[2] = buildingBounds[1] + perpAxis * length;
                     buildingBounds[3] = buildingBounds[0] + perpAxis * length;
 
@@ -83,6 +122,21 @@ public class BuildingGenerator : MonoBehaviour
 
         transform.rotation = Quaternion.LookRotation(new Vector3(perpAxis.x, 0, perpAxis.y), Vector3.up);
         transform.position = new Vector3(position.x, 0, position.y);
+    }
+
+    public void CalculateSkeleton()
+    {
+        random = new System.Random(seed);        
+        if(((float)random.NextDouble()) * 100f <= splitChance)
+        {
+
+        }
+        else
+        {
+            Vector2 limbAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
+            limbAxis = new Vector2(-limbAxis.y, limbAxis.x);
+            skeleton = new Limb[] { new Limb() { axis = limbAxis, length = length, width = width} };
+        }
     }
 
     private bool LineSegmentsIntersection(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, out Vector2 intersection)
@@ -110,6 +164,40 @@ public class BuildingGenerator : MonoBehaviour
         return true;
     }
 
+    private IEnumerator TrackProgressCoroutine()
+    {
+        while (generationThread.IsAlive)
+        {
+            if (cancelGeneration)
+            {
+                generationThread.Abort();
+            }
+            yield return null;
+        }
+
+        if (!cancelGeneration)
+        {
+            mesh = meshData.GetMesh();
+            mesh.name = gameObject.name + " Mesh";
+            meshFilter.mesh = mesh;
+            meshRenderer.materials = meshData.materials;
+        }
+
+        if(restartGeneration)
+        {
+            restartGeneration = false;
+            cancelGeneration = false;
+            generationThread = new Thread(new ThreadStart(MeshGenerationThread));
+
+            meshData = new MeshData();
+            baseTransformMatrix = transform.worldToLocalMatrix;
+
+            generationThread.Start();
+
+            StartCoroutine(TrackProgressCoroutine());
+        }
+    }
+
     public void GenerateMesh()
     {
         if (meshFilter == null)
@@ -122,9 +210,28 @@ public class BuildingGenerator : MonoBehaviour
         if (meshRenderer == null)
             meshRenderer = gameObject.AddComponent<MeshRenderer>();
 
+        if (generationThread != null && generationThread.IsAlive)
+        {
+            cancelGeneration = true;
+            restartGeneration = true;
+            return;
+        }
 
-        mesh = new Mesh();
-        mesh.name = gameObject.name + " Mesh";
+        restartGeneration = false;
+        cancelGeneration = false;
+        generationThread = new Thread(new ThreadStart(MeshGenerationThread));
+
+        meshData = new MeshData();
+        baseTransformMatrix = transform.worldToLocalMatrix;
+
+        generationThread.Start();
+
+        StartCoroutine(TrackProgressCoroutine());
+    }
+
+    private void MeshGenerationThread()
+    {
+        buildingTheme.SetSeed(seed);
 
         for (int floor = 0; floor < height; floor++)
             for (int i = 0; i < buildingBounds.Length; i++)
@@ -137,7 +244,7 @@ public class BuildingGenerator : MonoBehaviour
                 {
                     Vector2 segmentPos = buildingBounds[i] + j * wallAxis;
                     MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
-                    WeldMesh(meshRenderer, wallData.materials, mesh, wallData.mesh, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(-wallAxis.y, 0, wallAxis.x), Vector3.up), transform);
+                    WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(-wallAxis.y, 0, wallAxis.x), Vector3.up), baseTransformMatrix);
                 }
             }
 
@@ -157,7 +264,7 @@ public class BuildingGenerator : MonoBehaviour
                     {
                         Vector2 segmentPos = origin + j * axis - inwardAxis * MINUTE_VALUE;
                         MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.straight);
-                        WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                        WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
                     }
 
                 if (width % 2 == 1)
@@ -165,7 +272,7 @@ public class BuildingGenerator : MonoBehaviour
                     int index = width / 2;
                     Vector2 segmentPos = origin + index * axis - inwardAxis * MINUTE_VALUE;
                     MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-                    WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                    WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
                 }
             }
             else
@@ -175,7 +282,7 @@ public class BuildingGenerator : MonoBehaviour
                     {
                         Vector2 segmentPos = origin + j * axis + inwardAxis * perimeter - inwardAxis * MINUTE_VALUE;
                         MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
-                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                        WeldMesh(meshData, roofData, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
                     }
             }
         }
@@ -212,26 +319,20 @@ public class BuildingGenerator : MonoBehaviour
                     {
                         Vector2 segmentPos = buildingBounds[i] + j * axis + inwardAxis * index;
                         MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.centeredStraight);
-                        WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
+                        WeldMesh(meshData, roofData, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
                     }
                 }
             }
         }
-
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
-        mesh.RecalculateTangents();
-
-        meshFilter.mesh = mesh;
     }
 
-    public void WeldMesh(MeshRenderer meshRenderer, Material[] sourceMaterials, Mesh target, Mesh source, Vector3 position, Quaternion rotation, Transform parent)
+    public void WeldMesh(MeshData target, MeshData source, Vector3 position, Quaternion rotation, Matrix4x4 worldToLocalMatrix)
     {
         List<Material> materials = new List<Material>();
 
         if (target.vertexCount > 0)
         {
-            materials = new List<Material>(meshRenderer.sharedMaterials);
+            materials = new List<Material>(target.materials);
         }
         else
             target.subMeshCount = 0;
@@ -241,20 +342,16 @@ public class BuildingGenerator : MonoBehaviour
         List<Vector3> vertices = new List<Vector3>(target.vertices);
 
         for (int i = 0; i < source.vertexCount; i++)
-            vertices.Add(parent.worldToLocalMatrix.MultiplyPoint3x4(rotation * source.vertices[i] + position));
+            vertices.Add(worldToLocalMatrix.MultiplyPoint3x4(rotation * source.vertices[i] + position));
 
-        List<Vector2> uvs0 = new List<Vector2>(target.uv);
-        List<Vector2> uvs1 = new List<Vector2>(target.uv2);
+        List<Vector2> uvs = new List<Vector2>(target.uv);
 
-        uvs0.AddRange(source.uv);
-        uvs1.AddRange(source.uv2);
+        uvs.AddRange(source.uv);
 
         target.vertices = vertices.ToArray();
 
-        if (uvs0.Count == target.vertexCount)
-            target.uv = uvs0.ToArray();
-        if (uvs1.Count == target.vertexCount)
-            target.uv2 = uvs1.ToArray();
+        if (uvs.Count == target.vertexCount)
+            target.uv = uvs.ToArray();
 
         for (int i = 0; i < source.subMeshCount; i++)
         {
@@ -263,7 +360,7 @@ public class BuildingGenerator : MonoBehaviour
             for (int j = 0; j < triangles.Count; j++)
                 triangles[j] += vertexOffset;
 
-            Material material = sourceMaterials[i];
+            Material material = source.materials[i];
 
             int submeshIndex = materials.IndexOf(material);
             if (submeshIndex >= 0)
@@ -279,6 +376,6 @@ public class BuildingGenerator : MonoBehaviour
             }
         }
 
-        meshRenderer.sharedMaterials = materials.ToArray();
+        target.materials = materials.ToArray();
     }
 }

@@ -1,13 +1,5 @@
 ﻿using UnityEngine;
-using UnityEditor;
-
-public class MeshData
-{
-    public Mesh mesh;
-    public Material[] materials;
-
-    public MeshData(Mesh mesh, Material[] materials) { this.mesh = mesh; this.materials = materials; }
-}
+using System;
 
 public enum MeshType { wall, roof, facade }
 
@@ -18,8 +10,26 @@ public class BuildingTheme : ScriptableObject
     public SectionData[] roofs;
     public SectionData[] roofFacades;
 
+    [ThreadStatic]
+    private System.Random random;
+    [ThreadStatic]
+    private int seed;
+
+    /// <summary>
+    /// Sets randomisation seed (thread specific).
+    /// </summary>
+    public void SetSeed(int seed) => this.seed = seed;
+
+    /// <summary>
+    /// Retrieves random mesh of certain type and section type (thread safe).
+    /// </summary>
+    /// <param name="meshType">Requested mesh type, eg. roof or wall.</param>
+    /// <param name="sectionType">Requested section type, eg. straight or corner.</param>
     public MeshData GetRandomMesh(MeshType meshType, SectionType sectionType)
     {
+        if (random == null)
+            random = new System.Random(seed);
+
         SectionData[] sections;
         switch (meshType)
         {
@@ -36,12 +46,7 @@ public class BuildingTheme : ScriptableObject
                 return null;
         }
 
-        int index = Random.Range(0, sections.Length);
-        Mesh mesh = sections[index].meshes[(int)sectionType];
-        Material[] materials = sections[index].materialArrays[(int)sectionType].materials;
-
-        if(mesh == null || materials == null)
-            Debug.Log("oh no..");
-        return new MeshData(mesh, materials);
+        int index = random.Next(sections.Length);
+        return sections[index].meshDataArray[(int)sectionType];
     }
 }
