@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using System.IO;
 using System;
 using System.Collections;
@@ -24,11 +26,23 @@ static class MeshExporter
     static private float progress;
     static private bool cancelSave = false;
 
+    static private Action onFinishedDelegate;
+
     private enum Task { vertex, uv, normal, triangle, write, done }
     static private Task currentTask;
 
+    static public void BindOnFinished(Action onFinishedCallback)
+    {
+        if (onFinishedDelegate == null)
+            onFinishedDelegate = onFinishedCallback;
+        else
+            onFinishedDelegate += onFinishedCallback;
+    }
+
     static public void SaveMesh(MonoBehaviour owner, Mesh mesh, string fileName, bool reapplySharedMesh = true, string folder = "Assets/Resources/Meshes/Exporter/", bool overwrite = true)
     {
+        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+
         meshOwner = owner;
         applySharedMesh = reapplySharedMesh;
         if (!Directory.Exists(folder))
@@ -104,6 +118,18 @@ static class MeshExporter
         }
         yield return new WaitForSeconds(1f);
 
+        ModelImporter meshImporter = AssetImporter.GetAtPath(filePath + extension) as ModelImporter;
+        if (meshImporter == null)
+        {
+            AssetDatabase.ImportAsset(filePath + extension, ImportAssetOptions.ForceUpdate);
+            meshImporter = AssetImporter.GetAtPath(filePath + extension) as ModelImporter;
+        }
+
+        meshImporter.isReadable = true;
+        meshImporter.meshOptimizationFlags = 0;
+        meshImporter.weldVertices = false;
+
+
         AssetDatabase.ImportAsset(filePath + extension, ImportAssetOptions.ForceUpdate);
 
         if (applySharedMesh)
@@ -111,6 +137,9 @@ static class MeshExporter
 
         EditorUtility.ClearProgressBar();
         Debug.Log("Saved mesh to " + filePath);
+
+        onFinishedDelegate?.Invoke();
+        onFinishedDelegate = null;
     }
 
     /// <summary>

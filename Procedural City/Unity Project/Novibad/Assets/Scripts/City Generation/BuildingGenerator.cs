@@ -4,22 +4,27 @@ using UnityEngine;
 
 public class BuildingGenerator : MonoBehaviour
 {
+    private const float MINUTE_VALUE = 0.0001f;
+
+    [HideInInspector]
     public Vector2[] constraintBounds;
+    [HideInInspector]
     public Vector2 allignmentAxisStart;
+    [HideInInspector]
     public Vector2 allignmentAxisEnd;
-    [Range(0, 1)]
+    [HideInInspector]
     public float axisPosition;
     public int width;
     [Range(0.2f, 5)]
     public float prefferedRatio;
     public int height;
+    [ReadOnly]
+    public int length;
 
     public BuildingTheme buildingTheme;
 
-    [ReadOnly]
+    [HideInInspector]
     public Vector2[] buildingBounds;
-    [ReadOnly]
-    public int length;
 
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
@@ -27,12 +32,19 @@ public class BuildingGenerator : MonoBehaviour
 
     public void CalculateBounds(bool useTransformPosition)
     {
+        Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart);
+        float maxWidth = allignmentAxis.magnitude - MINUTE_VALUE;
+        allignmentAxis.Normalize();
+
+        if (width > (int)maxWidth)
+            width = (int)maxWidth;
+
         length = Mathf.FloorToInt(width / prefferedRatio);
-        Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
 
         if (useTransformPosition)
             axisPosition = Vector2.Dot(new Vector2(transform.position.x, transform.position.z) - allignmentAxisStart, allignmentAxis) / Vector2.Distance(allignmentAxisStart, allignmentAxisEnd);
 
+        axisPosition = Mathf.Min(1f - width / 2f / maxWidth, Mathf.Max(width / 2f / maxWidth, axisPosition));
 
         Vector2 position = allignmentAxisStart + axisPosition * (allignmentAxisEnd - allignmentAxisStart);
         buildingBounds = new Vector2[] { position - allignmentAxis * 0.5f * width,
@@ -143,14 +155,15 @@ public class BuildingGenerator : MonoBehaviour
                 for (int perimeter = 0; perimeter < width / 2; perimeter++)
                     for (int j = perimeter; j < roofLength - perimeter; j++)
                     {
-                        Vector2 segmentPos = origin + j * axis - inwardAxis * 0.001f;
+                        Vector2 segmentPos = origin + j * axis - inwardAxis * MINUTE_VALUE;
                         MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.straight);
                         WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
                     }
 
+                if (width % 2 == 1)
                 {
                     int index = width / 2;
-                    Vector2 segmentPos = origin + index * axis - inwardAxis * 0.001f;
+                    Vector2 segmentPos = origin + index * axis - inwardAxis * MINUTE_VALUE;
                     MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
                     WeldMesh(meshRenderer, roofFacadeData.materials, mesh, roofFacadeData.mesh, new Vector3(segmentPos.x, height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
                 }
@@ -160,7 +173,7 @@ public class BuildingGenerator : MonoBehaviour
                 for (int perimeter = 0; perimeter < width / 2; perimeter++)
                     for (int j = 0; j < roofLength; j++)
                     {
-                        Vector2 segmentPos = origin + j * axis + inwardAxis * perimeter - inwardAxis * 0.001f;
+                        Vector2 segmentPos = origin + j * axis + inwardAxis * perimeter - inwardAxis * MINUTE_VALUE;
                         MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
                         WeldMesh(meshRenderer, roofData.materials, mesh, roofData.mesh, new Vector3(segmentPos.x, height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), transform);
                     }

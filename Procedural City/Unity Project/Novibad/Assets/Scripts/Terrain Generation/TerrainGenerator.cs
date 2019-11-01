@@ -102,7 +102,7 @@ public class TerrainGenerator : MonoBehaviour
             erosionKernel = erosionComputeShader.FindKernel("CSErosion");
         }
 
-        if(denoiseComputeShader == null)
+        if (denoiseComputeShader == null)
         {
             denoiseComputeShader = Resources.Load<ComputeShader>("Compute/DenoiseCompute");
             denoiseKernel = denoiseComputeShader.FindKernel("CSDenoise");
@@ -111,7 +111,37 @@ public class TerrainGenerator : MonoBehaviour
 
     public void SaveMesh()
     {
+        Mesh mesh;
+        if (meshFilter.sharedMesh != null)
+            mesh = meshFilter.sharedMesh;
+        else if (meshFilter.mesh != null)
+            mesh = meshFilter.mesh;
+        else
+            return;
+
+        MeshExporter.BindOnFinished(ReCalculateUVs);
         MeshExporter.SaveMesh(this, mesh, mesh.name);
+    }
+
+    public void ReCalculateUVs()
+    {
+        if (meshFilter == null)
+            meshFilter = gameObject.GetComponent<MeshFilter>();
+
+        meshFilter.sharedMesh.uv = GenerateUVs();
+        EditorUtility.SetDirty(meshFilter.sharedMesh);
+    }
+
+    public void ReCalculateNormals()
+    {
+        if (meshFilter == null)
+            meshFilter = gameObject.GetComponent<MeshFilter>();
+
+        meshFilter.sharedMesh.RecalculateNormals();
+        meshFilter.sharedMesh.RecalculateBounds();
+        meshFilter.sharedMesh.RecalculateTangents();
+
+        EditorUtility.SetDirty(meshFilter.sharedMesh);
     }
 
     #region Mesh Generation
@@ -208,7 +238,7 @@ public class TerrainGenerator : MonoBehaviour
         {
             for (int z = 0; z < verticesPerSide; z++)
             {
-                Vector2 vec = new Vector2((x * spaceBetweenVertices / uvScale) % 2, (z * spaceBetweenVertices / uvScale) % 2);
+                Vector2 vec = new Vector2((x * spaceBetweenVertices / uvScale) % (2 - spaceBetweenVertices / uvScale), (z * spaceBetweenVertices / uvScale) % (2 - spaceBetweenVertices / uvScale));
                 uvs[Index(x, z)] = new Vector2(vec.x <= 1 ? vec.x : 2 - vec.x, vec.y <= 1 ? vec.y : 2 - vec.y);
             }
         }
@@ -321,20 +351,16 @@ public class TerrainGenerator : MonoBehaviour
 
     private IEnumerator Erode()
     {
+        var stopwatch = new System.Diagnostics.Stopwatch();
+        stopwatch.Start();
         eroding = true;
 
         int maximumDispatchCount = erosionIterationCount / 1024;
         int dispatchGroupSize = 1;
-        int trail = 0;
-        if (erosionIterationCount > 1024)
-        {
-            dispatchGroupSize = maximumDispatchCount / 30;
-            trail = maximumDispatchCount - 30 * dispatchGroupSize;
-        }
 
         int dispatchCount = 0;
 
-        for (int i = 0; i < maximumDispatchCount - trail; i += dispatchGroupSize)
+        while (dispatchCount < maximumDispatchCount)
         {
             dispatchCount += dispatchGroupSize;
 
@@ -351,11 +377,23 @@ public class TerrainGenerator : MonoBehaviour
             erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
 
             erosionComputeShader.Dispatch(erosionKernel, dispatchGroupSize, 1, 1);
+            stopwatch.Stop();
+            long time = stopwatch.ElapsedMilliseconds;
+
+            stopwatch.Reset();
+            stopwatch.Start();
+            if (time < 150)
+                dispatchGroupSize++;
+            else
+                dispatchGroupSize--;
+
+            if (dispatchCount + dispatchGroupSize > maximumDispatchCount)
+                dispatchGroupSize = maximumDispatchCount - dispatchCount;
 
             randomIndexBuffer.Dispose();
 
             float progress = (float)dispatchCount / maximumDispatchCount * 100f;
-            if(EditorUtility.DisplayCancelableProgressBar("Eroding Terrain", progress + "% done", progress/100f))
+            if (EditorUtility.DisplayCancelableProgressBar("Eroding Terrain", progress + "% done", progress / 100f))
                 cancelErosion = true;
 
             if (cancelErosion)
@@ -363,38 +401,6 @@ public class TerrainGenerator : MonoBehaviour
 
             yield return null;
         }
-
-        for (int i = 0; i < trail; i++)
-        {
-            dispatchCount++;
-
-            Vector2Int[] randomIndices = new Vector2Int[1024];
-            for (int j = 0; j < 1024; j++)
-            {
-                int randomX = Random.Range(erosionRadius, resolution - erosionRadius);
-                int randomY = Random.Range(erosionRadius, resolution - erosionRadius);
-                randomIndices[j] = new Vector2Int(randomY, randomX);
-            }
-
-            ComputeBuffer randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int) * 2);
-            randomIndexBuffer.SetData(randomIndices);
-            erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
-
-            erosionComputeShader.Dispatch(erosionKernel, 1, 1, 1);
-
-            randomIndexBuffer.Dispose();
-
-            float progress = (float)dispatchCount / maximumDispatchCount * 100f;
-            if(EditorUtility.DisplayCancelableProgressBar("Eroding Terrain", progress + "% done", progress/100f))
-                cancelErosion = true;
-
-            if (cancelErosion)
-                break;
-
-            yield return null;
-        }
-
-        cancelErosion = false;
 
         brushIndexBuffer.Dispose();
         brushWeightBuffer.Dispose();
@@ -402,7 +408,13 @@ public class TerrainGenerator : MonoBehaviour
         eroding = false;
 
         EditorUtility.ClearProgressBar();
-        Debug.Log("Erosion done!");
+
+        if (cancelErosion)
+            Debug.Log("Erosion cancelled.");
+        else
+            Debug.Log("Erosion done!");
+
+        cancelErosion = false;
 
         ApplyDenoise();
 

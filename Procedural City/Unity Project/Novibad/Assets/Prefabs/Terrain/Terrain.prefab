@@ -17,7 +17,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 4294967295
   m_IsActive: 1
 --- !u!4 &3332836662558443244
 Transform:
@@ -48,9 +48,9 @@ MonoBehaviour:
   heightMap: {fileID: 0}
   readTex: {fileID: 0}
   resolution: 1024
-  dimensions: 160
-  uvScale: 160
-  meshHeight: 35
+  dimensions: 1024
+  uvScale: 1024
+  meshHeight: 224
   layers: 20
   persistence: 0.326
   baseRoughness: 1
@@ -121,4 +121,4 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3332836662558443242}
-  m_Mesh: {fileID: 0}
+  m_Mesh: {fileID: -2441658414131813105, guid: c7eeb5368be68984ab93c4ccd6d9eac0, type: 3}

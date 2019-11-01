@@ -200,6 +200,12 @@ public class TerrainGeneratorEditor : Editor
             terrainGenerator.heightMap = null;
         }
 
+        if (GUILayout.Button("Recalculate Normals"))
+            terrainGenerator.ReCalculateNormals();
+
+        if (GUILayout.Button("Recalculate UVs"))
+            terrainGenerator.ReCalculateUVs();
+
         if (GUILayout.Button(new GUIContent("Save mesh", "Saves mesh to an OBJ file and points shared mesh to that file instead of storing the mesh in the scene. (greatly improves scene file size.)")))
             terrainGenerator.SaveMesh();
 
