@@ -18,7 +18,11 @@ public class BuildingTheme : ScriptableObject
     /// <summary>
     /// Sets randomisation seed (thread specific).
     /// </summary>
-    public void SetSeed(int seed) => this.seed = seed;
+    public void SetSeed(int seed)
+    {
+        this.seed = seed;
+        random = new System.Random(seed);
+    }
 
     /// <summary>
     /// Retrieves random mesh of certain type and section type (thread safe).

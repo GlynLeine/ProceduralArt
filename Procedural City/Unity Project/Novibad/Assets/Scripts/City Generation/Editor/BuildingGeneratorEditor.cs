@@ -29,6 +29,11 @@ public class BuildingGeneratorEditor : Editor
         if (building == null)
             building = target as BuildingGenerator;
 
+        Handles.color = Color.blue;
+
+        for (int i = 0; i < 4; i++)
+            Handles.DrawLine(new Vector3(building.buildingBounds[i].x, 0, building.buildingBounds[i].y), new Vector3(building.buildingBounds[(i + 1) % 4].x, 0, building.buildingBounds[(i + 1) % 4].y));
+
         EditorGUI.BeginChangeCheck();
         Vector3 axisStartWorld = new Vector3(building.allignmentAxisStart.x, 0, building.allignmentAxisStart.y);
         Vector3 axisEndWorld = new Vector3(building.allignmentAxisEnd.x, 0, building.allignmentAxisEnd.y);
@@ -38,10 +43,6 @@ public class BuildingGeneratorEditor : Editor
 
         Handles.color = Color.white;
         Handles.DrawLine(axisStartWorld, axisEndWorld);
-
-        for (int i = 0; i < 4; i++)
-            Handles.DrawLine(new Vector3(building.buildingBounds[i].x, 0, building.buildingBounds[i].y), new Vector3(building.buildingBounds[(i + 1) % 4].x, 0, building.buildingBounds[(i + 1) % 4].y));
-
 
         if (building.constraintBounds != null && building.constraintBounds.Length > 2)
         {
@@ -66,6 +67,17 @@ public class BuildingGeneratorEditor : Editor
 
             building.allignmentAxisStart = new Vector2(axisStartWorld.x, axisStartWorld.z);
             building.allignmentAxisEnd = new Vector2(axisEndWorld.x, axisEndWorld.z);
+        }
+
+        if(building.skeleton != null)
+        {
+            Handles.color = Color.green;
+
+            foreach (var limb in building.skeleton)
+            {
+                Vector2 end = limb.limbBase + limb.axis * limb.length;
+                Handles.DrawLine(new Vector3(limb.limbBase.x, 0, limb.limbBase.y), new Vector3(end.x, 0, end.y));
+            }
         }
 
         if (EditorGUI.EndChangeCheck() || building.transform.hasChanged)
