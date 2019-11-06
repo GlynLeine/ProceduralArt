@@ -50,8 +50,8 @@ public class StreetGeneratorEditor : Editor
             {
                 Handles.DrawLine(new Vector3(side.start.x, 0, side.start.y), new Vector3(side.end.x, 0, side.end.y));
 
-                if(side.buildings != null)
-                    foreach(var building in side.buildings)
+                if (side.buildings != null)
+                    foreach (var building in side.buildings)
                         (CreateEditor(building) as BuildingGeneratorEditor).DrawLines();
             }
 
@@ -83,7 +83,8 @@ public class StreetGeneratorEditor : Editor
 
                 if (side.buildings != null)
                     foreach (var building in side.buildings)
-                        (CreateEditor(building) as BuildingGeneratorEditor).DrawLines();
+                        if (building)
+                            (CreateEditor(building) as BuildingGeneratorEditor).DrawLines();
             }
     }
 }

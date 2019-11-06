@@ -7,20 +7,21 @@ public class CityBlock : MonoBehaviour
 
     public float buildingSpace;
 
-    private HashSet<StreetGenerator> streets;
+    private StreetGenerator[] streets;
 
     public void EnforceBoundaries()
     {
         Vector2[][] boundaries = new Vector2[intersections.Length][];
 
+        HashSet<StreetGenerator> uniqueStreets = new HashSet<StreetGenerator>();
         foreach (Intersection intersection in intersections)
             foreach (StreetGenerator street in intersection.connectedStreets)
-                streets.Add(street);
-
-        for (int i = 0; i < streets.Count; i++)
+                uniqueStreets.Add(street);
+        streets = new StreetGenerator[uniqueStreets.Count];
+        uniqueStreets.CopyTo(streets);
+        for (int i = 0; i < streets.Length; i++)
         {
-
-            //Vector2[] bounds = new Vector2[] { intersections };
+            Vector2[] bounds = new Vector2[] { streets[i].end, streets[i].start };
         }
     }
 }
