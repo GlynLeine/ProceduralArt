@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using UnityEditor;
 
 public class BuildingGenerator : MonoBehaviour
 {
@@ -65,6 +66,8 @@ public class BuildingGenerator : MonoBehaviour
 
     public void CalculateBounds(bool useTransformPosition)
     {
+        random = new System.Random(seed);
+
         Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart);
         float maxWidth = allignmentAxis.magnitude - MINUTE_VALUE;
         allignmentAxis.Normalize();
@@ -74,7 +77,7 @@ public class BuildingGenerator : MonoBehaviour
         if (width < 1)
             width = 1;
 
-        length = Mathf.Max(1, Mathf.FloorToInt(width / buildingShape.prefferedRatio));
+        length = Mathf.Max(1, Mathf.FloorToInt(width / ((float)random.NextDouble() * (buildingShape.prefferedRatioUpperBound - buildingShape.prefferedRatioLowerBound) + buildingShape.prefferedRatioLowerBound)));
 
         if (useTransformPosition)
             axisPosition = Vector2.Dot(new Vector2(transform.position.x, transform.position.z) - allignmentAxisStart, allignmentAxis) / Vector2.Distance(allignmentAxisStart, allignmentAxisEnd);
@@ -118,13 +121,10 @@ public class BuildingGenerator : MonoBehaviour
 
         transform.rotation = Quaternion.LookRotation(new Vector3(perpAxis.x, 0, perpAxis.y), Vector3.up);
         transform.position = new Vector3(position.x, 0, position.y);
-
-        CalculateSkeleton();
     }
 
     public void CalculateSkeleton()
     {
-        random = new System.Random(seed);
         if ((float)random.NextDouble() * 100f <= buildingShape.splitChance)
         {
             Vector2 subLimbAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
@@ -152,8 +152,6 @@ public class BuildingGenerator : MonoBehaviour
             Limb mainLimb = new Limb() { limbBase = mainLimbBase, axis = mainLimbAxis, length = length, width = mainLimbWidth, height = buildingShape.height, doubleSided = true, interrupts = new WallInterrupt[] { mainWallInterrupt } };
             Limb subLimb = new Limb() { limbBase = subLimbBase, axis = subLimbAxis, length = subLimbLength, width = subLimbWidth, height = subLimbHeight, doubleSided = false, interrupts = new WallInterrupt[] { subLimbInterruptLeft, subLimbInterruptRight } };
             skeleton = new Limb[] { mainLimb, subLimb };
-
-            pos = new Vector2(transform.position.x, transform.position.z);
         }
         else
         {
@@ -163,21 +161,19 @@ public class BuildingGenerator : MonoBehaviour
         }
     }
 
-    Vector2 pos;
-
     private bool LineSegmentsIntersection(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, out Vector2 intersection)
     {
         intersection = Vector2.zero;
 
-        var d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
+        float d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
 
         if (d == 0.0f)
         {
             return false;
         }
 
-        var u = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
-        var v = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d;
+        float u = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
+        float v = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d;
 
         if (u < 0.0f || u > 1.0f || v < 0.0f || v > 1.0f)
         {
@@ -205,12 +201,14 @@ public class BuildingGenerator : MonoBehaviour
         {
             mesh = meshData.GetMesh();
             mesh.name = gameObject.name + " Mesh";
+            Unwrapping.GenerateSecondaryUVSet(mesh);
             meshFilter.mesh = mesh;
             meshRenderer.materials = meshData.materials;
         }
 
         if (restartGeneration)
         {
+            Debug.Log("restart thread");
             restartGeneration = false;
             cancelGeneration = false;
             generationThread = new Thread(new ThreadStart(MeshGenerationThread));
@@ -261,8 +259,6 @@ public class BuildingGenerator : MonoBehaviour
         {
             Vector2 yAxis = limb.axis;
             Vector2 xAxis = new Vector2(yAxis.y, -yAxis.x);
-
-            Debug.Log((limb.limbBase - pos) + " " + limb.width + " " + limb.length);
 
             for (int floor = 0; floor < limb.height; floor++)
                 for (int sideScale = -1; sideScale <= 1; sideScale += 2)
@@ -368,83 +364,6 @@ public class BuildingGenerator : MonoBehaviour
         GenerateWalls();
 
         GenerateRoofs();
-
-        //for (int i = 0; i < buildingBounds.Length; i++)
-        //{
-        //    Vector2 axis = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
-        //    Vector2 origin = buildingBounds[i];
-        //    int roofLength = Mathf.RoundToInt(axis.magnitude);
-        //    axis.Normalize();
-
-        //    Vector2 inwardAxis = new Vector2(-axis.y, axis.x);
-
-        //    if (i == 0 || i == 2)
-        //    {
-        //        for (int perimeter = 0; perimeter < width / 2; perimeter++)
-        //            for (int j = perimeter; j < roofLength - perimeter; j++)
-        //            {
-        //                Vector2 segmentPos = origin + j * axis - inwardAxis * MINUTE_VALUE;
-        //                MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.straight);
-        //                WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, buildingShape.height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
-        //            }
-
-        //        if (width % 2 == 1)
-        //        {
-        //            int index = width / 2;
-        //            Vector2 segmentPos = origin + index * axis - inwardAxis * MINUTE_VALUE;
-        //            MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-        //            WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, buildingShape.height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
-        //        }
-        //    }
-        //    else
-        //    {
-        //        for (int perimeter = 0; perimeter < width / 2; perimeter++)
-        //            for (int j = 0; j < roofLength; j++)
-        //            {
-        //                Vector2 segmentPos = origin + j * axis + inwardAxis * perimeter - inwardAxis * MINUTE_VALUE;
-        //                MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
-        //                WeldMesh(meshData, roofData, new Vector3(segmentPos.x, buildingShape.height + perimeter, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
-        //            }
-        //    }
-        //}
-
-        //List<(Vector2 origin, Vector2 axis, int length)> buildingSkeleton = new List<(Vector2 origin, Vector2 axis, int length)>();
-        //List<Vector2> uniques = new List<Vector2>();
-        //for (int i = 0; i < buildingBounds.Length; i++)
-        //{
-        //    Vector2 normal = buildingBounds[(i + 1) % buildingBounds.Length] - buildingBounds[i];
-        //    int length = Mathf.RoundToInt(normal.magnitude);
-        //    normal.Normalize();
-
-        //    if (!uniques.Contains(normal) && !uniques.Contains(-normal))
-        //    {
-        //        uniques.Add(normal);
-        //        buildingSkeleton.Add((buildingBounds[i], normal, length));
-        //    }
-        //}
-
-        //if (width % 2 == 1)
-        //{
-        //    for (int i = 0; i < buildingSkeleton.Count; i++)
-        //    {
-        //        Vector2 axis = buildingSkeleton[i].axis;
-        //        Vector2 origin = buildingSkeleton[i].origin;
-        //        int length = buildingSkeleton[i].length;
-
-        //        int index = width / 2;
-        //        if (i != 0 && i != 2)
-        //        {
-        //            Vector2 inwardAxis = new Vector2(-axis.y, axis.x);
-
-        //            for (int j = 0; j < length; j++)
-        //            {
-        //                Vector2 segmentPos = buildingBounds[i] + j * axis + inwardAxis * index;
-        //                MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.centeredStraight);
-        //                WeldMesh(meshData, roofData, new Vector3(segmentPos.x, buildingShape.height + index, segmentPos.y), Quaternion.LookRotation(new Vector3(-axis.y, 0, axis.x), Vector3.up), baseTransformMatrix);
-        //            }
-        //        }
-        //    }
-        //}
     }
 
     public void WeldMesh(MeshData target, MeshData source, Vector3 position, Quaternion rotation, Matrix4x4 worldToLocalMatrix)

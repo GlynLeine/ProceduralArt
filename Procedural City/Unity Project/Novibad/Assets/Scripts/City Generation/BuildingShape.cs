@@ -7,7 +7,9 @@ public class BuildingShape : ScriptableObject
     [Header("Bounds Settings")]
     public int width;
     [Range(0.2f, 5)]
-    public float prefferedRatio;
+    public float prefferedRatioLowerBound; 
+    [Range(0.2f, 5)]
+    public float prefferedRatioUpperBound;
     public int height;
 
     [Header("Shape Settings"), Range(0f, 100f)]

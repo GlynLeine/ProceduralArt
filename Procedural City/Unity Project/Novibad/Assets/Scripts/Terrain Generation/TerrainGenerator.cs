@@ -351,7 +351,7 @@ public class TerrainGenerator : MonoBehaviour
 
     private IEnumerator Erode()
     {
-        var stopwatch = new System.Diagnostics.Stopwatch();
+        System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
         stopwatch.Start();
         eroding = true;
 
