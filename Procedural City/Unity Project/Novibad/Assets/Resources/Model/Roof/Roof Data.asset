@@ -34,7 +34,7 @@ MonoBehaviour:
     subMeshes:
     - triangles: 000000000300000001000000030000000000000002000000
     materials:
-    - {fileID: 2100000, guid: 0f01e6124e9188446ba0064fa77baf47, type: 2}
+    - {fileID: -2966219153377726338, guid: a60d809f2ee6c9d408a8ae2cf574012e, type: 3}
   - vertices:
     - {x: 0, y: 0, z: 1}
     - {x: -1, y: 0, z: 1}
