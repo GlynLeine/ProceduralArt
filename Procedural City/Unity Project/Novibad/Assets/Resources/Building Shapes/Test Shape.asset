@@ -15,7 +15,8 @@ MonoBehaviour:
   width: 7
   prefferedRatioLowerBound: 0.6
   prefferedRatioUpperBound: 0.8
-  height: 5
+  heightLowerBound: 3
+  heightUpperBound: 5
   splitChance: 74.6
   subLimbWidthScaleLowerBound: 0.4
   subLimbWidthScaleUpperBound: 0.5

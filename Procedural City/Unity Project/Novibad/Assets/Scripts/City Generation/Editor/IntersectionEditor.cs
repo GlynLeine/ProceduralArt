@@ -23,9 +23,22 @@ public class IntersectionEditor : Editor
         }
 
         if (GUILayout.Button("Generate buildings"))
+        {
+            foreach (var street in intersection.connectedStreets)
+                street.generatedBuildings = false;
+
             foreach (var street in intersection.connectedStreets)
                 if (!street.generatedBuildings)
                     street.GenerateBuildings();
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (intersection == null)
+            intersection = target as Intersection;
+
+        intersection.transform.hasChanged = false;
     }
 
     public void OnSceneGUI()

@@ -27,6 +27,7 @@ public class BuildingGenerator : MonoBehaviour
     #region Generation Values
     private int width;
     private int length;
+    private int height;
 
     [HideInInspector]
     public Vector2[] buildingBounds;
@@ -41,6 +42,7 @@ public class BuildingGenerator : MonoBehaviour
     private Thread generationThread;
     private Matrix4x4 baseTransformMatrix;
 
+    [System.Serializable]
     public struct WallInterrupt
     {
         public int height;
@@ -48,6 +50,8 @@ public class BuildingGenerator : MonoBehaviour
         public int start;
         public int end;
     }
+
+    [System.Serializable]
     public struct Limb
     {
         public bool doubleSided;
@@ -59,6 +63,7 @@ public class BuildingGenerator : MonoBehaviour
 
         public WallInterrupt[] interrupts;
     }
+
     public Limb[] skeleton;
 
     private System.Random random;
@@ -68,6 +73,12 @@ public class BuildingGenerator : MonoBehaviour
     {
         random = new System.Random(seed);
 
+        if (constraintBounds != null && constraintBounds.Length >= 2)
+        {
+            allignmentAxisStart = constraintBounds[0];
+            allignmentAxisEnd = constraintBounds[1];
+        }
+
         Vector2 allignmentAxis = (allignmentAxisEnd - allignmentAxisStart);
         float maxWidth = allignmentAxis.magnitude - MINUTE_VALUE;
         allignmentAxis.Normalize();
@@ -76,6 +87,8 @@ public class BuildingGenerator : MonoBehaviour
             width = (int)maxWidth;
         if (width < 1)
             width = 1;
+
+        height = random.Next(buildingShape.heightLowerBound, buildingShape.heightUpperBound + 1);
 
         length = Mathf.Max(1, Mathf.FloorToInt(width / ((float)random.NextDouble() * (buildingShape.prefferedRatioUpperBound - buildingShape.prefferedRatioLowerBound) + buildingShape.prefferedRatioLowerBound)));
 
@@ -95,11 +108,6 @@ public class BuildingGenerator : MonoBehaviour
 
         if (constraintBounds != null && constraintBounds.Length > 2)
         {
-            transform.position = Vector3.zero;
-
-            allignmentAxisStart = constraintBounds[0];
-            allignmentAxisEnd = constraintBounds[1];
-
             for (int i = 1; i < constraintBounds.Length; i++)
             {
                 Vector2 intersection;
@@ -135,7 +143,7 @@ public class BuildingGenerator : MonoBehaviour
             float widthScale = (float)random.NextDouble() * (buildingShape.mainLimbWidthScaleUpperBound - buildingShape.mainLimbWidthScaleLowerBound) + buildingShape.mainLimbWidthScaleLowerBound;
             int mainLimbWidth = Mathf.RoundToInt(width * widthScale);
             int subLimbLength = width - mainLimbWidth + mainLimbWidth / 2;
-            int subLimbHeight = Mathf.RoundToInt(buildingShape.height * ((float)random.NextDouble() * (buildingShape.subLimbHeigthScaleUpperBound - buildingShape.subLimbHeightScaleLowerBound) + buildingShape.subLimbHeightScaleLowerBound));
+            int subLimbHeight = Mathf.RoundToInt(height * ((float)random.NextDouble() * (buildingShape.subLimbHeigthScaleUpperBound - buildingShape.subLimbHeightScaleLowerBound) + buildingShape.subLimbHeightScaleLowerBound));
 
             Vector2 mainLimbBase = new Vector2(transform.position.x, transform.position.z) - (subLimbLength - width / 2f) * subLimbAxis;
 
@@ -146,10 +154,10 @@ public class BuildingGenerator : MonoBehaviour
             int subLimbWidth = Mathf.RoundToInt(length * ((float)random.NextDouble() * (buildingShape.subLimbWidthScaleUpperBound - buildingShape.subLimbWidthScaleLowerBound) + buildingShape.subLimbWidthScaleLowerBound));
 
             WallInterrupt mainWallInterrupt = new WallInterrupt() { sideScale = sideScale, start = splitIndex - subLimbWidth / 2, end = splitIndex + Mathf.FloorToInt(subLimbWidth / 2f), height = subLimbHeight };
-            WallInterrupt subLimbInterruptLeft = new WallInterrupt() { sideScale = -1, start = -1, end = Mathf.RoundToInt(mainLimbWidth / 2f), height = buildingShape.height };
-            WallInterrupt subLimbInterruptRight = new WallInterrupt() { sideScale = 1, start = -1, end = Mathf.RoundToInt(mainLimbWidth / 2f), height = buildingShape.height };
+            WallInterrupt subLimbInterruptLeft = new WallInterrupt() { sideScale = -1, start = -1, end = Mathf.RoundToInt(mainLimbWidth / 2f), height = height };
+            WallInterrupt subLimbInterruptRight = new WallInterrupt() { sideScale = 1, start = -1, end = Mathf.RoundToInt(mainLimbWidth / 2f), height = height };
 
-            Limb mainLimb = new Limb() { limbBase = mainLimbBase, axis = mainLimbAxis, length = length, width = mainLimbWidth, height = buildingShape.height, doubleSided = true, interrupts = new WallInterrupt[] { mainWallInterrupt } };
+            Limb mainLimb = new Limb() { limbBase = mainLimbBase, axis = mainLimbAxis, length = length, width = mainLimbWidth, height = height, doubleSided = true, interrupts = new WallInterrupt[] { mainWallInterrupt } };
             Limb subLimb = new Limb() { limbBase = subLimbBase, axis = subLimbAxis, length = subLimbLength, width = subLimbWidth, height = subLimbHeight, doubleSided = false, interrupts = new WallInterrupt[] { subLimbInterruptLeft, subLimbInterruptRight } };
             skeleton = new Limb[] { mainLimb, subLimb };
         }
@@ -157,7 +165,7 @@ public class BuildingGenerator : MonoBehaviour
         {
             Vector2 limbAxis = (allignmentAxisEnd - allignmentAxisStart).normalized;
             limbAxis = new Vector2(-limbAxis.y, limbAxis.x);
-            skeleton = new Limb[] { new Limb() { limbBase = new Vector2(transform.position.x, transform.position.z), axis = limbAxis, length = length, width = width, height = buildingShape.height, doubleSided = true } };
+            skeleton = new Limb[] { new Limb() { limbBase = new Vector2(transform.position.x, transform.position.z), axis = limbAxis, length = length, width = width, height = height, doubleSided = true } };
         }
     }
 

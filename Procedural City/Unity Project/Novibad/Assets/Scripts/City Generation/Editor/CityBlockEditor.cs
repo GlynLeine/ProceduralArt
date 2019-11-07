@@ -11,11 +11,18 @@ public class CityBlockEditor : Editor
         DrawDefaultInspector();
 
         if (GUILayout.Button("Generate buildings"))
+        {
+            foreach (Intersection intersection in cityBlock.intersections)
+                if (intersection)
+                    foreach (StreetGenerator street in intersection.connectedStreets)
+                        street.generatedBuildings = false;
+
             foreach (Intersection intersection in cityBlock.intersections)
                 if (intersection)
                     foreach (StreetGenerator street in intersection.connectedStreets)
                         if (!street.generatedBuildings)
                             street.GenerateBuildings();
+        }
 
     }
 

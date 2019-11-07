@@ -17,11 +17,15 @@ public class CityBlock : MonoBehaviour
         foreach (Intersection intersection in intersections)
             foreach (StreetGenerator street in intersection.connectedStreets)
                 uniqueStreets.Add(street);
+
         streets = new StreetGenerator[uniqueStreets.Count];
         uniqueStreets.CopyTo(streets);
         for (int i = 0; i < streets.Length; i++)
         {
-            Vector2[] bounds = new Vector2[] { streets[i].end, streets[i].start };
+            Vector2 xAxis = (streets[i].end - streets[i].start).normalized;
+            Vector2 yAxis = new Vector2(-xAxis.y, xAxis.x);
+
+            Vector2[] bounds = new Vector2[] { streets[i].start, streets[i].end,  };
         }
     }
 }

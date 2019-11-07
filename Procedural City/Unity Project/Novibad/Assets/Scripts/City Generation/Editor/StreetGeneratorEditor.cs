@@ -27,6 +27,14 @@ public class StreetGeneratorEditor : Editor
         }
     }
 
+    private void OnEnable()
+    {
+        if (street == null)
+            street = target as StreetGenerator;
+
+        street.transform.hasChanged = false;
+    }
+
     public void OnSceneGUI()
     {
         if (street == null)
@@ -52,7 +60,8 @@ public class StreetGeneratorEditor : Editor
 
                 if (side.buildings != null)
                     foreach (var building in side.buildings)
-                        (CreateEditor(building) as BuildingGeneratorEditor).DrawLines();
+                        if (building)
+                            (CreateEditor(building) as BuildingGeneratorEditor).DrawLines();
             }
 
         street.start = new Vector2(streetStartWorld.x, streetStartWorld.z);

@@ -10,7 +10,8 @@ public class BuildingShape : ScriptableObject
     public float prefferedRatioLowerBound; 
     [Range(0.2f, 5)]
     public float prefferedRatioUpperBound;
-    public int height;
+    public int heightLowerBound;
+    public int heightUpperBound;
 
     [Header("Shape Settings"), Range(0f, 100f)]
     public float splitChance;
