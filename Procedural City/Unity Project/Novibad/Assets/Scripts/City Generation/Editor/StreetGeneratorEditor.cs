@@ -40,12 +40,20 @@ public class StreetGeneratorEditor : Editor
         if (street == null)
             street = target as StreetGenerator;
 
+        float positionHeight = street.transform.position.y;
+
         EditorGUI.BeginChangeCheck();
 
-        Vector3 streetStartWorld = new Vector3(street.start.x, 0, street.start.y);
-        Vector3 streetEndWorld = new Vector3(street.end.x, 0, street.end.y);
+        Vector3 streetStartWorld = new Vector3(street.start.x, positionHeight, street.start.y);
+        Vector3 streetEndWorld = new Vector3(street.end.x, positionHeight, street.end.y);
 
         Vector3 streetAxis = (streetEndWorld - streetStartWorld).normalized;
+
+        if (StreetGenerator.sharedTerrain != null)
+        {
+            streetStartWorld.y = StreetGenerator.sharedTerrain.GetTerrainHeight(street.start);
+            streetEndWorld.y = StreetGenerator.sharedTerrain.GetTerrainHeight(street.end);
+        }
 
         streetStartWorld = Handles.DoPositionHandle(streetStartWorld, Quaternion.LookRotation(streetAxis, Vector3.up));
         streetEndWorld = Handles.DoPositionHandle(streetEndWorld, Quaternion.LookRotation(streetAxis, Vector3.up));
@@ -56,7 +64,7 @@ public class StreetGeneratorEditor : Editor
         if (street.sides != null)
             foreach (var side in street.sides)
             {
-                Handles.DrawLine(new Vector3(side.start.x, 0, side.start.y), new Vector3(side.end.x, 0, side.end.y));
+                Handles.DrawLine(new Vector3(side.start.x, streetStartWorld.y, side.start.y), new Vector3(side.end.x, streetEndWorld.y, side.end.y));
 
                 if (side.buildings != null)
                     foreach (var building in side.buildings)
@@ -79,8 +87,16 @@ public class StreetGeneratorEditor : Editor
         if (street == null)
             street = target as StreetGenerator;
 
-        Vector3 streetStartWorld = new Vector3(street.start.x, 0, street.start.y);
-        Vector3 streetEndWorld = new Vector3(street.end.x, 0, street.end.y);
+        float positionHeight = street.transform.position.y;
+
+        Vector3 streetStartWorld = new Vector3(street.start.x, positionHeight, street.start.y);
+        Vector3 streetEndWorld = new Vector3(street.end.x, positionHeight, street.end.y);
+
+        if (StreetGenerator.sharedTerrain != null)
+        {
+            streetStartWorld.y = StreetGenerator.sharedTerrain.GetTerrainHeight(street.start);
+            streetEndWorld.y = StreetGenerator.sharedTerrain.GetTerrainHeight(street.end);
+        }
 
         Handles.color = Color.white;
         Handles.DrawLine(streetStartWorld, streetEndWorld);
@@ -88,7 +104,7 @@ public class StreetGeneratorEditor : Editor
         if (street.sides != null)
             foreach (var side in street.sides)
             {
-                Handles.DrawLine(new Vector3(side.start.x, 0, side.start.y), new Vector3(side.end.x, 0, side.end.y));
+                Handles.DrawLine(new Vector3(side.start.x, streetStartWorld.y, side.start.y), new Vector3(side.end.x, streetEndWorld.y, side.end.y));
 
                 if (side.buildings != null)
                     foreach (var building in side.buildings)

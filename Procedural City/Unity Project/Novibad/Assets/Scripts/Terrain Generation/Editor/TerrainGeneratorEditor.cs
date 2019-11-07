@@ -111,7 +111,7 @@ public class TerrainGeneratorEditor : Editor
 
         changed = EditorGUI.EndChangeCheck() || changed;
 
-        if (terrainGenerator.eroding)
+        if (TerrainGenerator.eroding)
         {
             GUI.enabled = false;
             GUILayout.Button("Apply erosion");
@@ -176,8 +176,10 @@ public class TerrainGeneratorEditor : Editor
                 if (autoUpdateNoise)
                     terrainGenerator.GenerateHeightMap();
 
-                if (terrainGenerator.heightMap != null && autoUpdateErosion && !terrainGenerator.eroding)
+                if (terrainGenerator.heightMap != null && autoUpdateErosion && !TerrainGenerator.eroding)
+                {                    
                     terrainGenerator.ApplyErosion();
+                }
 
                 if (terrainGenerator.heightMap != null && autoUpdateMesh && !autoUpdateErosion)
                     terrainGenerator.GenerateMesh();
@@ -190,7 +192,7 @@ public class TerrainGeneratorEditor : Editor
                 autoUpdate = true;
                 if (autoUpdateErosion)
                     terrainGenerator.autoErode = true;
-                if(autoUpdateMesh)
+                if (autoUpdateMesh)
                     terrainGenerator.autoGenMesh = true;
             }
         }

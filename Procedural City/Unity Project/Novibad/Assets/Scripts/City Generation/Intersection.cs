@@ -15,10 +15,23 @@ public class Intersection : MonoBehaviour
         { this.startSide = startSide; this.side = side; this.other = other; this.street = street; }
     }
 
+    public static TerrainGenerator sharedTerrain;
+
+    public TerrainGenerator terrain;
+
     public void CorrectStreetPositions()
     {
         if (connectedStreets == null || connectedStreets.Count <= 0)
             return;
+
+        if (sharedTerrain == null)
+        {
+            sharedTerrain = terrain;
+        }
+        else
+            terrain = sharedTerrain;
+
+        StreetGenerator.sharedTerrain = sharedTerrain;
 
         Vector2 position = new Vector2(transform.position.x, transform.position.z);
         transform.position = new Vector3(position.x, 0, position.y);
@@ -29,7 +42,6 @@ public class Intersection : MonoBehaviour
                 connectedStreets[i].start = position;
             else
                 connectedStreets[i].end = position;
-
             connectedStreets[i].CalculateBounds(false);
         }
     }

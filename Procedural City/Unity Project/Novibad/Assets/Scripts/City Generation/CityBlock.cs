@@ -35,6 +35,9 @@ public class CityBlock : MonoBehaviour
         else
             terrain = sharedTerrain;
 
+        if (Intersection.sharedTerrain != sharedTerrain)
+            Intersection.sharedTerrain = sharedTerrain;
+
         for (int i = 0; i < intersections.Length; i++)
             if (intersections[i])
                 intersections[i].CorrectStreetPositions();

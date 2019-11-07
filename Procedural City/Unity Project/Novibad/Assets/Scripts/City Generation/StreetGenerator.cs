@@ -82,7 +82,7 @@ public class StreetGenerator : MonoBehaviour
 
             Vector2 pos = start + axis * length * 0.5f;
 
-            transform.position = new Vector3(pos.x, 0, pos.y);
+            transform.position = new Vector3(pos.x, sharedTerrain.GetTerrainHeight(pos), pos.y);
             transform.rotation = Quaternion.LookRotation(new Vector3(axis.x, 0, axis.y), Vector3.up);
         }
 

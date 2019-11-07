@@ -3,7 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEditor;
 
-[ExecuteInEditMode]
+[ExecuteAlways, InitializeOnLoad]
 public class TerrainGenerator : MonoBehaviour
 {
     [HideInInspector]
@@ -70,15 +70,14 @@ public class TerrainGenerator : MonoBehaviour
     private int erosionKernel;
     private int denoiseKernel;
 
-    private IEnumerator progressCoroutine;
+    static IEnumerator progressCoroutine;
 
-    //[HideInInspector]
-    public bool eroding = false;
+    static public bool eroding = false;
     [HideInInspector]
     public bool autoErode;
     [HideInInspector]
     public bool autoGenMesh;
-     [HideInInspector]
+    [HideInInspector]
     public bool cancelErosion;
 
     public float GetTerrainHeight(Vector2 position)
@@ -92,10 +91,18 @@ public class TerrainGenerator : MonoBehaviour
         return ret;
     }
 
-    public void Update()
+    static TerrainGenerator()
     {
-        if (eroding)
+        EditorApplication.update += Update;
+    }
+
+    static void Update()
+    {
+        if (eroding && progressCoroutine != null)
+        {
             progressCoroutine.MoveNext();
+            EditorApplication.QueuePlayerLoopUpdate();
+        }
     }
 
     public void OnValidate()
@@ -370,7 +377,7 @@ public class TerrainGenerator : MonoBehaviour
         erosionComputeShader.SetFloat("waterDampening", waterDampening);
 
         Debug.Log("Starting erosion...");
-        StartCoroutine(progressCoroutine = Erode());        
+        StartCoroutine(progressCoroutine = Erode());
     }
 
     private IEnumerator Erode()
@@ -386,6 +393,9 @@ public class TerrainGenerator : MonoBehaviour
 
         while (dispatchCount < maximumDispatchCount)
         {
+            if (dispatchGroupSize < 1)
+                dispatchGroupSize = 1;
+
             dispatchCount += dispatchGroupSize;
 
             Vector2Int[] randomIndices = new Vector2Int[dispatchGroupSize * 1024];
@@ -399,9 +409,6 @@ public class TerrainGenerator : MonoBehaviour
             ComputeBuffer randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int) * 2);
             randomIndexBuffer.SetData(randomIndices);
             erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
-
-            if (dispatchGroupSize < 1)
-                dispatchGroupSize = 1;
 
             erosionComputeShader.Dispatch(erosionKernel, dispatchGroupSize, 1, 1);
             stopwatch.Stop();
@@ -432,8 +439,6 @@ public class TerrainGenerator : MonoBehaviour
         brushIndexBuffer.Dispose();
         brushWeightBuffer.Dispose();
 
-        eroding = false;
-
         EditorUtility.ClearProgressBar();
 
         if (cancelErosion)
@@ -452,6 +457,8 @@ public class TerrainGenerator : MonoBehaviour
         readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0, false);
         readTex.Apply(false);
         RenderTexture.active = null;
+
+        eroding = false;
 
         if (autoGenMesh)
             GenerateMesh();
