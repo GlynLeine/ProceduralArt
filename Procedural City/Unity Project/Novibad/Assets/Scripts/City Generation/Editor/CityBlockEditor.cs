@@ -8,20 +8,16 @@ public class CityBlockEditor : Editor
 
     public override void OnInspectorGUI()
     {
+        EditorGUI.BeginChangeCheck();
+
         DrawDefaultInspector();
+
+        if (EditorGUI.EndChangeCheck() && cityBlock.terrain != CityBlock.sharedTerrain)
+            CityBlock.sharedTerrain = cityBlock.terrain;
 
         if (GUILayout.Button("Generate buildings"))
         {
-            foreach (Intersection intersection in cityBlock.intersections)
-                if (intersection)
-                    foreach (StreetGenerator street in intersection.connectedStreets)
-                        street.generatedBuildings = false;
-
-            foreach (Intersection intersection in cityBlock.intersections)
-                if (intersection)
-                    foreach (StreetGenerator street in intersection.connectedStreets)
-                        if (!street.generatedBuildings)
-                            street.GenerateBuildings();
+            cityBlock.GenerateBuildings();
         }
 
     }

@@ -1,9 +1,19 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class Intersection : MonoBehaviour
 {
     public List<StreetGenerator> connectedStreets;
+
+    class SideData
+    {
+        public bool startSide;
+        public StreetGenerator.StreetSide side;
+        public SideData other;
+        public StreetGenerator street;
+        public SideData(bool startSide, StreetGenerator.StreetSide side, SideData other, StreetGenerator street)
+        { this.startSide = startSide; this.side = side; this.other = other; this.street = street; }
+    }
 
     public void CorrectStreetPositions()
     {
@@ -11,6 +21,7 @@ public class Intersection : MonoBehaviour
             return;
 
         Vector2 position = new Vector2(transform.position.x, transform.position.z);
+        transform.position = new Vector3(position.x, 0, position.y);
 
         for (int i = 0; i < connectedStreets.Count; i++)
         {
@@ -22,74 +33,123 @@ public class Intersection : MonoBehaviour
             connectedStreets[i].CalculateBounds(false);
         }
     }
+
     public void CorrectStreetIntersections()
     {
         if (connectedStreets == null || connectedStreets.Count <= 0)
             return;
 
-        List<StreetGenerator.StreetSide> streetSides = new List<StreetGenerator.StreetSide>();
-        List<int> sideConnection = new List<int>();
-        for (int i = 0; i < connectedStreets.Count; i++)
-            foreach (StreetGenerator.StreetSide side in connectedStreets[i].sides)
+        SortedDictionary<float, SideData> streetSides = new SortedDictionary<float, SideData>();
+        Vector2 position = new Vector2(transform.position.x, transform.position.z);
+        foreach (StreetGenerator street in connectedStreets)
+            foreach (StreetGenerator.StreetSide side in street.sides)
             {
-                sideConnection.Add(i);
-                streetSides.Add(side);
+                bool startSide = Vector2.Distance(side.start, position) < Vector2.Distance(side.end, position);
+
+                Vector2 toSide;
+                Vector2 axis = (side.end - side.start).normalized;
+                if (startSide)
+                    toSide = side.start + axis * street.width - position;
+                else
+                    toSide = side.end - axis * street.width - position;
+
+                float angle = (Mathf.Atan2(toSide.x, toSide.y) + Mathf.PI) * 180 / Mathf.PI;
+
+                streetSides.Add(angle, new SideData(startSide, side, null, street));
             }
+
+        SideData[] sideArray = new SideData[streetSides.Count];
+        float[] angles = new float[streetSides.Count];
+        streetSides.Values.CopyTo(sideArray, 0);
+        streetSides.Keys.CopyTo(angles, 0);
+        for (int i = 0; i < sideArray.Length; i++)
+        {
+            if (i >= sideArray.Length)
+                continue;
+
+            int nextIndex = (i + 1) % sideArray.Length;
+            if (sideArray[i].street != sideArray[nextIndex].street)
+            {
+                sideArray[i].other = sideArray[nextIndex];
+                streetSides.Remove(angles[nextIndex]);
+                i++;
+            }
+        }
 
         Vector2 intersection;
-        for (int i = 0; i < streetSides.Count; i++)
-            for (int j = 0; j < streetSides.Count; j++)
+        foreach (SideData sideData in streetSides.Values)
+        {
+            Vector2 firstAxis = (sideData.side.end - sideData.side.start).normalized;
+            Vector2 secondAxis = (sideData.other.side.end - sideData.other.side.start).normalized;
+
+            if (LineSegmentsIntersection(sideData.side.start, sideData.side.end, sideData.other.side.start, sideData.other.side.end, out intersection))
             {
-                if (i == j)
-                    continue;
-
-                Vector2 firstAxis = (streetSides[i].end - streetSides[i].start).normalized;
-                Vector2 secondAxis = (streetSides[j].end - streetSides[j].start).normalized;
-
-                if (LineSegmentsIntersection(streetSides[i].start, streetSides[i].end, streetSides[j].start, streetSides[j].end, out intersection))
+                if (sideData.startSide)
                 {
-                    if (Vector2.Distance(streetSides[i].start, intersection) < Vector2.Distance(streetSides[i].end, intersection))
-                    {
-                        Vector2 cutAxis = (streetSides[j].end - streetSides[j].start).normalized;
-                        cutAxis = new Vector2(-cutAxis.y, cutAxis.x);
-                        float cutLength = connectedStreets[sideConnection[j]].buildingShapes[0].width / connectedStreets[sideConnection[j]].buildingShapes[0].prefferedRatioUpperBound;
-                        Vector2 newStart = intersection - Vector2.Dot(cutAxis * cutLength, firstAxis) * firstAxis;
-                        streetSides[i].start = newStart;
-                    }
-                    else
-                    {
-                        streetSides[i].end = intersection;
-                    }
+                    Vector2 cutAxis = new Vector2(-secondAxis.y, secondAxis.x);
+                    float cutLength = sideData.other.street.buildingShapes[0].width / sideData.other.street.buildingShapes[0].prefferedRatioUpperBound;
+                    Vector2 newStart = intersection - Vector2.Dot(cutAxis * cutLength, firstAxis) * firstAxis;
+                    sideData.side.start = newStart;
 
-                    if (Vector2.Distance(streetSides[j].start, intersection) < Vector2.Distance(streetSides[j].end, intersection))
+                    if (sideData.other.startSide)
                     {
-                        Vector2 cutAxis = (streetSides[i].end - streetSides[i].start).normalized;
-                        cutAxis = new Vector2(-cutAxis.y, cutAxis.x);
-                        float cutLength = connectedStreets[sideConnection[i]].buildingShapes[0].width / connectedStreets[sideConnection[i]].buildingShapes[0].prefferedRatioUpperBound;
-                        Vector2 newStart = intersection - Vector2.Dot(cutAxis * cutLength, secondAxis) * secondAxis;
-                        streetSides[j].start = newStart;
+                        sideData.other.side.start = intersection;
                     }
                     else
                     {
-                        streetSides[j].end = intersection;
+                        sideData.other.side.end = intersection;
                     }
                 }
-                else if (LineSegmentsIntersection(streetSides[i].start + firstAxis * 100, streetSides[i].end - firstAxis * 100, streetSides[j].start + secondAxis * 100, streetSides[j].end - secondAxis * 100, out intersection))
+                else
                 {
-                    if (Vector2.Distance(streetSides[i].start, intersection) < Vector2.Distance(streetSides[i].end, intersection))
-                        streetSides[i].start = intersection;
+                    if (sideData.other.startSide)
+                    {
+                        Vector2 cutAxis = new Vector2(-firstAxis.y, firstAxis.x);
+                        float cutLength = sideData.street.buildingShapes[0].width / sideData.street.buildingShapes[0].prefferedRatioUpperBound;
+                        Vector2 newStart = intersection + Vector2.Dot(cutAxis * cutLength, secondAxis) * secondAxis;
+                        sideData.other.side.start = newStart;
+                    }
                     else
-                        streetSides[i].end = intersection;
+                    {
+                        Vector2 cutAxis = new Vector2(-firstAxis.y, firstAxis.x);
+                        float cutLength = sideData.street.buildingShapes[0].width / sideData.street.buildingShapes[0].prefferedRatioUpperBound;
+                        Vector2 newEnd = intersection + Vector2.Dot(cutAxis * cutLength, secondAxis) * secondAxis;
+                        sideData.other.side.end = newEnd;
+                    }
 
-                    if (Vector2.Distance(streetSides[j].start, intersection) < Vector2.Distance(streetSides[j].end, intersection))
-                        streetSides[j].start = intersection;
-                    else
-                        streetSides[j].end = intersection;
+                    sideData.side.end = intersection;
                 }
+
+                //if (sideData.other.startSide)
+                //{
+                //    Vector2 cutAxis = new Vector2(-firstAxis.y, firstAxis.x);
+                //    float cutLength = sideData.street.buildingShapes[0].width / sideData.street.buildingShapes[0].prefferedRatioUpperBound;
+                //    Vector2 newStart = intersection - Vector2.Dot(cutAxis * cutLength, secondAxis) * secondAxis;
+                //    sideData.other.side.start = newStart;
+                //}
+                //else
+                //{
+                //    sideData.other.side.end = intersection;
+                //}
             }
+            else if (LineSegmentsIntersection(sideData.side.start - firstAxis * 1000, sideData.side.end + firstAxis * 1000, sideData.other.side.start - secondAxis * 1000, sideData.other.side.end + secondAxis * 1000, out intersection))
+            {
+                if (sideData.startSide)
+                    sideData.side.start = intersection;
+                else
+                    sideData.side.end = intersection;
 
-        for (int i = 0; i < streetSides.Count; i++)
-            streetSides[i].length = (streetSides[i].end - streetSides[i].start).magnitude;
+                if (sideData.other.startSide)
+                    sideData.other.side.start = intersection;
+                else
+                    sideData.other.side.end = intersection;
+            }
+        }
+
+        sideArray = new SideData[streetSides.Count];
+        streetSides.Values.CopyTo(sideArray, 0);
+        for (int i = 0; i < sideArray.Length; i++)
+            sideArray[i].side.length = (sideArray[i].side.end - sideArray[i].side.start).magnitude;
     }
 
     private bool LineSegmentsIntersection(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, out Vector2 intersection)

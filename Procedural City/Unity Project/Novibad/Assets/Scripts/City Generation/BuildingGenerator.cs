@@ -4,9 +4,13 @@ using System.Threading;
 using UnityEngine;
 using UnityEditor;
 
+[ExecuteInEditMode]
 public class BuildingGenerator : MonoBehaviour
 {
     private const float MINUTE_VALUE = 0.0001f;
+    public static int numberOfGeneratingBuildings = 0;
+
+    public static TerrainGenerator sharedTerrain;
 
     #region Position & Constraint Inputs
     [HideInInspector]
@@ -18,6 +22,8 @@ public class BuildingGenerator : MonoBehaviour
     [HideInInspector]
     public float axisPosition;
     #endregion
+
+    public TerrainGenerator terrain;
 
     [Header("Visuals Settings")]
     public BuildingShape buildingShape;
@@ -41,6 +47,7 @@ public class BuildingGenerator : MonoBehaviour
     private bool restartGeneration = false;
     private Thread generationThread;
     private Matrix4x4 baseTransformMatrix;
+    private float heightOffset;
 
     [System.Serializable]
     public struct WallInterrupt
@@ -122,13 +129,41 @@ public class BuildingGenerator : MonoBehaviour
                     length = Mathf.Max(1, Mathf.FloorToInt(Vector2.Distance(buildingBounds[0], intersection)));
                     buildingBounds[2] = buildingBounds[1] + perpAxis * length;
                     buildingBounds[3] = buildingBounds[0] + perpAxis * length;
-
                 }
             }
         }
 
+        if (sharedTerrain == null)
+        {
+            sharedTerrain = terrain;
+        }
+        else
+            terrain = sharedTerrain;
+
+        float lowestHeight = float.MaxValue;
+        float highestHeight = float.MinValue;
+        if (sharedTerrain != null)
+            for (int i = 0; i < buildingBounds.Length; i++)
+            {
+                float terrainHeight = sharedTerrain.GetTerrainHeight(buildingBounds[i]);
+
+                if (terrainHeight < lowestHeight)
+                    lowestHeight = terrainHeight;
+
+                if (terrainHeight > highestHeight)
+                    highestHeight = terrainHeight;
+            }
+
+        if (lowestHeight > float.MaxValue * 0.9)
+            heightOffset = transform.position.y;
+        else
+        {
+            heightOffset = lowestHeight;
+            height += Mathf.RoundToInt(highestHeight - lowestHeight);
+        }
+
         transform.rotation = Quaternion.LookRotation(new Vector3(perpAxis.x, 0, perpAxis.y), Vector3.up);
-        transform.position = new Vector3(position.x, 0, position.y);
+        transform.position = new Vector3(position.x, heightOffset, position.y);
     }
 
     public void CalculateSkeleton()
@@ -201,6 +236,7 @@ public class BuildingGenerator : MonoBehaviour
             if (cancelGeneration)
             {
                 generationThread.Abort();
+                numberOfGeneratingBuildings--;
             }
             yield return null;
         }
@@ -212,6 +248,7 @@ public class BuildingGenerator : MonoBehaviour
             Unwrapping.GenerateSecondaryUVSet(mesh);
             meshFilter.mesh = mesh;
             meshRenderer.materials = meshData.materials;
+            numberOfGeneratingBuildings--;
         }
 
         if (restartGeneration)
@@ -225,7 +262,7 @@ public class BuildingGenerator : MonoBehaviour
             baseTransformMatrix = transform.worldToLocalMatrix;
 
             generationThread.Start();
-
+            numberOfGeneratingBuildings++;
             StartCoroutine(TrackProgressCoroutine());
         }
     }
@@ -255,9 +292,10 @@ public class BuildingGenerator : MonoBehaviour
 
         meshData = new MeshData();
         baseTransformMatrix = transform.worldToLocalMatrix;
+        heightOffset = transform.position.y;
 
         generationThread.Start();
-
+        numberOfGeneratingBuildings++;
         StartCoroutine(TrackProgressCoroutine());
     }
 
@@ -287,7 +325,7 @@ public class BuildingGenerator : MonoBehaviour
 
                         Vector2 segmentPos = limb.limbBase + xAxis * (limb.width * 0.5f) * sideScale + yAxis * (y + 0.5f);
                         MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
-                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
                     }
 
                     if (!limb.doubleSided && sideScale < 0)
@@ -297,7 +335,7 @@ public class BuildingGenerator : MonoBehaviour
                     {
                         Vector2 segmentPos = limb.limbBase + xAxis * (x - limb.width / 2f + 0.5f) + yAxis * limb.length * Mathf.Max(0, sideScale);
                         MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
-                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
                     }
                 }
         }
@@ -328,7 +366,7 @@ public class BuildingGenerator : MonoBehaviour
 
                         Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x) * sideScale + yAxis * (y + 0.5f);
                         MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
-                        WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + x, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + x + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
                     }
 
                     for (int frontScale = -1; frontScale <= 1; frontScale += 2)
@@ -337,7 +375,7 @@ public class BuildingGenerator : MonoBehaviour
                             {
                                 Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x - 0.5f) * sideScale + yAxis * (limb.length * Mathf.Max(0, frontScale) + MINUTE_VALUE * frontScale);
                                 MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-                                WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + floor, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
+                                WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
                             }
 
                 }
@@ -350,7 +388,7 @@ public class BuildingGenerator : MonoBehaviour
                 {
                     Vector2 segmentPos = limb.limbBase + (y + 0.5f) * yAxis;
                     MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.centeredStraight);
-                    WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + roofHeight, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y), Vector3.up), baseTransformMatrix);
+                    WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + roofHeight + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y), Vector3.up), baseTransformMatrix);
                 }
 
                 for (int y = 0; y <= roofHeight; y++)
@@ -359,7 +397,7 @@ public class BuildingGenerator : MonoBehaviour
                         {
                             Vector2 segmentPos = limb.limbBase + yAxis * limb.length * Mathf.Max(0, frontScale) + yAxis * MINUTE_VALUE * frontScale;
                             MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-                            WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + y, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
+                            WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + y + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
                         }
             }
         }

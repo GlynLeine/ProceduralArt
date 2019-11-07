@@ -34,8 +34,19 @@ public class StreetGenerator : MonoBehaviour
     [HideInInspector]
     public bool generatedBuildings;
 
+    public static TerrainGenerator sharedTerrain;
+
+    public TerrainGenerator terrain;
+
     public void CalculateBounds(bool useTransform)
     {
+        if (sharedTerrain == null)
+        {
+            sharedTerrain = terrain;
+        }
+        else
+            terrain = sharedTerrain;
+
         int children = transform.childCount;
         for (int i = 0; i < children; ++i)
         {
@@ -116,6 +127,9 @@ public class StreetGenerator : MonoBehaviour
 
                 BuildingGenerator building = new GameObject().AddComponent<BuildingGenerator>();
                 building.transform.SetParent(transform);
+
+                if (BuildingGenerator.sharedTerrain != sharedTerrain)
+                    BuildingGenerator.sharedTerrain = sharedTerrain;
 
                 building.name = "building " + (sideScale < 0? "left " : "right ") + buildingIndex++;
 

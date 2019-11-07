@@ -46,7 +46,7 @@ public class TerrainGeneratorEditor : Editor
                 }
                 else
                     displayRect = GUILayoutUtility.GetAspectRect(1);
-                EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.heightMap);
+                EditorGUI.DrawPreviewTexture(displayRect, terrainGenerator.readTex);
 
                 EditorGUILayout.Space();
             }

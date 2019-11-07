@@ -1,31 +1,65 @@
 ﻿using UnityEngine;
-using System.Collections.Generic;
+using System.Collections;
+using UnityEditor;
 
+[ExecuteInEditMode]
 public class CityBlock : MonoBehaviour
 {
+    public static TerrainGenerator sharedTerrain;
+
     public Intersection[] intersections;
 
-    public float buildingSpace;
+    public int seed;
 
-    private StreetGenerator[] streets;
+    public TerrainGenerator terrain;
 
-    public void EnforceBoundaries()
+    private IEnumerator TrackProgressCoroutine()
     {
-        Vector2[][] boundaries = new Vector2[intersections.Length][];
-
-        HashSet<StreetGenerator> uniqueStreets = new HashSet<StreetGenerator>();
-        foreach (Intersection intersection in intersections)
-            foreach (StreetGenerator street in intersection.connectedStreets)
-                uniqueStreets.Add(street);
-
-        streets = new StreetGenerator[uniqueStreets.Count];
-        uniqueStreets.CopyTo(streets);
-        for (int i = 0; i < streets.Length; i++)
+        while (BuildingGenerator.numberOfGeneratingBuildings > 0)
         {
-            Vector2 xAxis = (streets[i].end - streets[i].start).normalized;
-            Vector2 yAxis = new Vector2(-xAxis.y, xAxis.x);
-
-            Vector2[] bounds = new Vector2[] { streets[i].start, streets[i].end,  };
+            EditorUtility.DisplayProgressBar("Generating Buildings", BuildingGenerator.numberOfGeneratingBuildings + " buildings still generating", 1);
+            yield return null;
         }
+
+        EditorUtility.ClearProgressBar();
+    }
+
+    public void GenerateBuildings()
+    {
+        System.Random random = new System.Random(seed);
+
+        if (sharedTerrain == null)
+        {
+            sharedTerrain = terrain;
+        }
+        else
+            terrain = sharedTerrain;
+
+        for (int i = 0; i < intersections.Length; i++)
+            if (intersections[i])
+                intersections[i].CorrectStreetPositions();
+
+        for (int i = 0; i < intersections.Length; i++)
+            if (intersections[i])
+                intersections[i].CorrectStreetIntersections();
+
+        foreach (Intersection intersection in intersections)
+            if (intersection)
+                foreach (StreetGenerator street in intersection.connectedStreets)
+                {
+                    street.seed = random.Next();
+                    street.generatedBuildings = false;
+                }
+
+        if (StreetGenerator.sharedTerrain != sharedTerrain)
+            StreetGenerator.sharedTerrain = sharedTerrain;
+
+        foreach (Intersection intersection in intersections)
+            if (intersection)
+                foreach (StreetGenerator street in intersection.connectedStreets)
+                    if (!street.generatedBuildings)
+                        street.GenerateBuildings();
+
+        StartCoroutine(TrackProgressCoroutine());
     }
 }

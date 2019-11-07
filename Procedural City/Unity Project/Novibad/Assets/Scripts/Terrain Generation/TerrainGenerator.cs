@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEditor;
 
+[ExecuteInEditMode]
 public class TerrainGenerator : MonoBehaviour
 {
     [HideInInspector]
@@ -69,14 +70,33 @@ public class TerrainGenerator : MonoBehaviour
     private int erosionKernel;
     private int denoiseKernel;
 
-    [HideInInspector]
+    private IEnumerator progressCoroutine;
+
+    //[HideInInspector]
     public bool eroding = false;
     [HideInInspector]
     public bool autoErode;
     [HideInInspector]
     public bool autoGenMesh;
-    [HideInInspector]
+     [HideInInspector]
     public bool cancelErosion;
+
+    public float GetTerrainHeight(Vector2 position)
+    {
+        if (readTex == null)
+            return 0;
+
+        Vector2 uv = (position + new Vector2(transform.position.x, transform.position.z)) / spaceBetweenVertices / verticesPerSide;
+        float readHeight = readTex.GetPixelBilinear(uv.x, uv.y).r;
+        float ret = readHeight * meshHeight + transform.position.y;
+        return ret;
+    }
+
+    public void Update()
+    {
+        if (eroding)
+            progressCoroutine.MoveNext();
+    }
 
     public void OnValidate()
     {
@@ -187,18 +207,14 @@ public class TerrainGenerator : MonoBehaviour
     {
         Vector3[] verts = new Vector3[verticesPerSide * verticesPerSide];
 
-        if (readTex == null || readTex.width != resolution)
-            readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
-
-        RenderTexture.active = heightMap;
-        readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0, false);
-        readTex.Apply(false);
+        if (readTex == null)
+            return null;
 
         //equaly distributed verts
         for (int x = 0; x < verticesPerSide; x++)
             for (int z = 0; z < verticesPerSide; z++)
             {
-                verts[Index(x, z)] = new Vector3(x * spaceBetweenVertices, readTex.GetPixelBilinear((float)x / (float)verticesPerSide, (float)z / (float)verticesPerSide).r * meshHeight, z * spaceBetweenVertices);
+                verts[Index(x, z)] = new Vector3(x * spaceBetweenVertices, readTex.GetPixelBilinear((float)x / verticesPerSide, (float)z / verticesPerSide).r * meshHeight, z * spaceBetweenVertices);
             }
 
         return verts;
@@ -292,6 +308,14 @@ public class TerrainGenerator : MonoBehaviour
         terrainComputeShader.Dispatch(terrainKernel, dispatchGroupSize, dispatchGroupSize, 1);
 
         randomOffsetsBuffer.Dispose();
+
+        if (readTex == null || readTex.width != resolution)
+            readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
+
+        RenderTexture.active = heightMap;
+        readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0, false);
+        readTex.Apply(false);
+        RenderTexture.active = null;
     }
 
     public void ApplyErosion()
@@ -346,7 +370,7 @@ public class TerrainGenerator : MonoBehaviour
         erosionComputeShader.SetFloat("waterDampening", waterDampening);
 
         Debug.Log("Starting erosion...");
-        StartCoroutine(Erode());
+        StartCoroutine(progressCoroutine = Erode());        
     }
 
     private IEnumerator Erode()
@@ -375,6 +399,9 @@ public class TerrainGenerator : MonoBehaviour
             ComputeBuffer randomIndexBuffer = new ComputeBuffer(randomIndices.Length, sizeof(int) * 2);
             randomIndexBuffer.SetData(randomIndices);
             erosionComputeShader.SetBuffer(erosionKernel, "randomIndices", randomIndexBuffer);
+
+            if (dispatchGroupSize < 1)
+                dispatchGroupSize = 1;
 
             erosionComputeShader.Dispatch(erosionKernel, dispatchGroupSize, 1, 1);
             stopwatch.Stop();
@@ -417,6 +444,14 @@ public class TerrainGenerator : MonoBehaviour
         cancelErosion = false;
 
         ApplyDenoise();
+
+        if (readTex == null || readTex.width != resolution)
+            readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
+
+        RenderTexture.active = heightMap;
+        readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0, false);
+        readTex.Apply(false);
+        RenderTexture.active = null;
 
         if (autoGenMesh)
             GenerateMesh();
