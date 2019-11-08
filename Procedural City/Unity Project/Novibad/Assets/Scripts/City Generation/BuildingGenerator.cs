@@ -325,7 +325,9 @@ public class BuildingGenerator : MonoBehaviour
 
                         Vector2 segmentPos = limb.limbBase + xAxis * (limb.width * 0.5f) * sideScale + yAxis * (y + 0.5f);
                         MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
-                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
+                        Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up);
+                        WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(y, floor));
                     }
 
                     if (!limb.doubleSided && sideScale < 0)
@@ -335,7 +337,9 @@ public class BuildingGenerator : MonoBehaviour
                     {
                         Vector2 segmentPos = limb.limbBase + xAxis * (x - limb.width / 2f + 0.5f) + yAxis * limb.length * Mathf.Max(0, sideScale);
                         MeshData wallData = buildingTheme.GetRandomMesh(MeshType.wall, SectionType.straight);
-                        WeldMesh(meshData, wallData, new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
+                        Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up);
+                        WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(x - limb.width / 2f, floor));
                     }
                 }
         }
@@ -366,7 +370,9 @@ public class BuildingGenerator : MonoBehaviour
 
                         Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x) * sideScale + yAxis * (y + 0.5f);
                         MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.straight);
-                        WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + x + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up), baseTransformMatrix);
+                        Vector3 position = new Vector3(segmentPos.x, limb.height + x + heightOffset, segmentPos.y);
+                        Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up);
+                        WeldMesh(meshData, roofData, position, rotation, baseTransformMatrix, new Vector2(x, y));
                     }
 
                     for (int frontScale = -1; frontScale <= 1; frontScale += 2)
@@ -375,7 +381,9 @@ public class BuildingGenerator : MonoBehaviour
                             {
                                 Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x - 0.5f) * sideScale + yAxis * (limb.length * Mathf.Max(0, frontScale) + MINUTE_VALUE * frontScale);
                                 MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-                                WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + floor + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
+                                Vector3 position = new Vector3(segmentPos.x, limb.height + floor + heightOffset, segmentPos.y);
+                                Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up);
+                                WeldMesh(meshData, roofFacadeData, position, rotation, baseTransformMatrix, new Vector2(x, floor));
                             }
 
                 }
@@ -388,7 +396,9 @@ public class BuildingGenerator : MonoBehaviour
                 {
                     Vector2 segmentPos = limb.limbBase + (y + 0.5f) * yAxis;
                     MeshData roofData = buildingTheme.GetRandomMesh(MeshType.roof, SectionType.centeredStraight);
-                    WeldMesh(meshData, roofData, new Vector3(segmentPos.x, limb.height + roofHeight + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y), Vector3.up), baseTransformMatrix);
+                    Vector3 position = new Vector3(segmentPos.x, limb.height + roofHeight + heightOffset, segmentPos.y);
+                    Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y), Vector3.up);
+                    WeldMesh(meshData, roofData, position, rotation, baseTransformMatrix, new Vector2(0, y));
                 }
 
                 for (int y = 0; y <= roofHeight; y++)
@@ -397,7 +407,9 @@ public class BuildingGenerator : MonoBehaviour
                         {
                             Vector2 segmentPos = limb.limbBase + yAxis * limb.length * Mathf.Max(0, frontScale) + yAxis * MINUTE_VALUE * frontScale;
                             MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
-                            WeldMesh(meshData, roofFacadeData, new Vector3(segmentPos.x, limb.height + y + heightOffset, segmentPos.y), Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up), baseTransformMatrix);
+                            Vector3 position = new Vector3(segmentPos.x, limb.height + y + heightOffset, segmentPos.y);
+                            Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up);
+                            WeldMesh(meshData, roofFacadeData, position, rotation, baseTransformMatrix, new Vector2(0, y));
                         }
             }
         }
@@ -412,7 +424,7 @@ public class BuildingGenerator : MonoBehaviour
         GenerateRoofs();
     }
 
-    public void WeldMesh(MeshData target, MeshData source, Vector3 position, Quaternion rotation, Matrix4x4 worldToLocalMatrix)
+    public void WeldMesh(MeshData target, MeshData source, Vector3 position, Quaternion rotation, Matrix4x4 worldToLocalMatrix, Vector2 uvOffset)
     {
         List<Material> materials = new List<Material>();
 
@@ -431,8 +443,11 @@ public class BuildingGenerator : MonoBehaviour
             vertices.Add(worldToLocalMatrix.MultiplyPoint3x4(rotation * source.vertices[i] + position));
 
         List<Vector2> uvs = new List<Vector2>(target.uv);
-
+        int uvIndex = uvs.Count;
         uvs.AddRange(source.uv);
+
+        for (int i = uvIndex; i < uvs.Count; i++)
+            uvs[i] += uvOffset;
 
         target.vertices = vertices.ToArray();
 

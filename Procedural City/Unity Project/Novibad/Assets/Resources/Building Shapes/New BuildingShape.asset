@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a574ee4d5330b4fa05c41957b8610c, type: 3}
+  m_Name: New BuildingShape
+  m_EditorClassIdentifier: 
+  width: 3
+  prefferedRatioLowerBound: 1
+  prefferedRatioUpperBound: 1
+  heightLowerBound: 1
+  heightUpperBound: 1
+  splitChance: 0
+  subLimbWidthScaleLowerBound: 0.001
+  subLimbWidthScaleUpperBound: 0.001
+  mainLimbWidthScaleLowerBound: 0.001
+  mainLimbWidthScaleUpperBound: 0.001
+  subLimbPositionScaleLowerBound: 0.001
+  subLimbPositionScaleUpperBound: 0.001
+  subLimbHeightScaleLowerBound: 0.001
+  subLimbHeigthScaleUpperBound: 0.001
