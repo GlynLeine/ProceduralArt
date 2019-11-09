@@ -88,6 +88,10 @@ public class TerrainGenerator : MonoBehaviour
         Vector2 uv = (position + new Vector2(transform.position.x, transform.position.z)) / spaceBetweenVertices / verticesPerSide;
         float readHeight = readTex.GetPixelBilinear(uv.x, uv.y).r;
         float ret = readHeight * meshHeight + transform.position.y;
+
+        if (float.IsNaN(ret))
+            return 0;
+
         return ret;
     }
 
