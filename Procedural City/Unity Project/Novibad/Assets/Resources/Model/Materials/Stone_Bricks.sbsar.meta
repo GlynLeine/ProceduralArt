@@ -17,7 +17,8 @@ ScriptedImporter:
     generateMipMaps: 1
     preset: " <sbspreset pkgurl=\"pkg://Stone_Bricks\" label=\"\" >\n  <presetinput
       identifier=\"$outputsize\" uid=\"1289258526\" type=\"8\" value=\"9,9\" />\n
-      </sbspreset>\n"
+      \ <presetinput identifier=\"$randomseed\" uid=\"464162892\" type=\"4\" value=\"6187\"
+      />\n </sbspreset>\n"
     shaderName: HDRP/LitTessellation
     materialProperties:
       shader: {fileID: 4800000, guid: 756bac9090102564582875f4c7e30202, type: 3}
