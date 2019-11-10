@@ -98,7 +98,6 @@ public class StreetGenerator : MonoBehaviour
             sides[sideIndex].end = end + normal * width / 2f * sideScale;
             sides[sideIndex].length = length;
         }
-
     }
 
     public void GenerateBuildings()
@@ -155,7 +154,7 @@ public class StreetGenerator : MonoBehaviour
 
                 building.CalculateBounds(false);
                 building.CalculateSkeleton();
-                building.GenerateMesh();
+                building.GenerateMeshAsync();
                 buildings.Add(building);
             }
 

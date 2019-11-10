@@ -49,11 +49,13 @@ public class TerrainGenerator : MonoBehaviour
     [Range(0, 1)]
     public float waterDampening = 0.9f;
 
-    [Header("Denoise Settings")]
-    public float threshold = 1f;
-    [Range(0, 1)]
-    public float weight = 0.1f;
-    public int denoiseItterations = 1;
+    [Header("City Layout Settings")]
+    public Vector2Int cityCenter;
+    public float cityRadius;
+    public float outSkirtMultiplyer;
+    public float probabilityScale = 1f;
+    public int evaluationRadius = 3;
+    public float probabilityPower = 30f;
 
     private Mesh mesh;
     private MeshFilter meshFilter;
@@ -63,12 +65,12 @@ public class TerrainGenerator : MonoBehaviour
 
     private ComputeShader terrainComputeShader;
     private ComputeShader erosionComputeShader;
-    private ComputeShader denoiseComputeShader;
+    private ComputeShader cityLayoutComputShader;
     private ComputeBuffer brushIndexBuffer;
     private ComputeBuffer brushWeightBuffer;
     private int terrainKernel;
     private int erosionKernel;
-    private int denoiseKernel;
+    private int cityLayoutKernel;
 
     static IEnumerator progressCoroutine;
 
@@ -133,10 +135,10 @@ public class TerrainGenerator : MonoBehaviour
             erosionKernel = erosionComputeShader.FindKernel("CSErosion");
         }
 
-        if (denoiseComputeShader == null)
+        if (cityLayoutComputShader == null)
         {
-            denoiseComputeShader = Resources.Load<ComputeShader>("Compute/DenoiseCompute");
-            denoiseKernel = denoiseComputeShader.FindKernel("CSDenoise");
+            cityLayoutComputShader = Resources.Load<ComputeShader>("Compute/CityLayoutCompute");
+            cityLayoutKernel = cityLayoutComputShader.FindKernel("CSCityLayout");
         }
     }
 
@@ -285,6 +287,7 @@ public class TerrainGenerator : MonoBehaviour
         if (heightMap != null)
             heightMap.Release();
         heightMap = new RenderTexture(resolution, resolution, 24, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        AssetDatabase.CreateAsset(heightMap, "Assets/Resources/Compute/" + gameObject.name + "HeightMap.asset");
         heightMap.useDynamicScale = false;
         heightMap.useMipMap = false;
         heightMap.enableRandomWrite = true;
@@ -452,7 +455,7 @@ public class TerrainGenerator : MonoBehaviour
 
         cancelErosion = false;
 
-        ApplyDenoise();
+        AssetDatabase.ImportAsset("Assets/Resources/Compute/" + gameObject.name + "HeightMap.asset", ImportAssetOptions.ForceUpdate);
 
         if (readTex == null || readTex.width != resolution)
             readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
@@ -468,15 +471,30 @@ public class TerrainGenerator : MonoBehaviour
             GenerateMesh();
     }
 
-    public void ApplyDenoise()
+    public void EvaluateCityLayout()
     {
-        denoiseComputeShader.SetTexture(denoiseKernel, "heightMap", heightMap);
-        denoiseComputeShader.SetFloat("threshold", threshold);
-        denoiseComputeShader.SetInt("resolution", resolution);
-        denoiseComputeShader.SetFloat("weight", weight);
+        cityLayoutComputShader.SetTexture(cityLayoutKernel, "heightMap", heightMap);
+        cityLayoutComputShader.SetFloat("probabilityScale", probabilityScale);
+        cityLayoutComputShader.SetInt("resolution", resolution);
+        cityLayoutComputShader.SetInt("evaluationRadius", evaluationRadius);
+        cityLayoutComputShader.SetFloat("waterHeight", waterHeight);
+        cityLayoutComputShader.SetFloat("probabilityPower", probabilityPower);
+        cityLayoutComputShader.SetFloat("outSkirtMultiplyer", outSkirtMultiplyer);
+        cityLayoutComputShader.SetInts("cityCenter", new int[] { cityCenter.x , cityCenter.y });
+        cityLayoutComputShader.SetFloat("cityRadius", cityRadius);
 
         int dispatchGroupSize = resolution / 32;
-        for (int i = 0; i < denoiseItterations; i++)
-            denoiseComputeShader.Dispatch(denoiseKernel, dispatchGroupSize, dispatchGroupSize, 1);
+
+        cityLayoutComputShader.Dispatch(cityLayoutKernel, dispatchGroupSize, dispatchGroupSize, 1);
+
+        AssetDatabase.ImportAsset("Assets/Resources/Compute/" + gameObject.name + "HeightMap.asset", ImportAssetOptions.ForceUpdate);
+
+        if (readTex == null || readTex.width != resolution)
+            readTex = new Texture2D(resolution, resolution, TextureFormat.RGBAFloat, false, true);
+
+        RenderTexture.active = heightMap;
+        readTex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0, false);
+        readTex.Apply(false);
+        RenderTexture.active = null;
     }
 }

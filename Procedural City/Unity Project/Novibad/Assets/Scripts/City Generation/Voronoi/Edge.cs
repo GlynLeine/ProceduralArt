@@ -5,12 +5,12 @@ public class Edge
 {
     public Point start;
     public Point end;
-    private Point site_left;
-    private Point site_right;
+    public Point site_left;
+    public Point site_right;
     private Vector2 direction; // edge is really a vector normal to left and right points
-     
+
     public Edge neighbor; // the same edge, but pointing in the opposite direction
-     
+
     public float slope;
     public float yint;
 

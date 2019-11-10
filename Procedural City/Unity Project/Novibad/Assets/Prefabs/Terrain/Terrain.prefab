@@ -70,10 +70,12 @@ MonoBehaviour:
   inertia: 0.3
   waterHeight: 0.365
   waterDampening: 0.1
-  threshold: 0.001
-  weight: 0
-  denoiseItterations: 0
-  eroding: 0
+  cityCenter: {x: 221, y: 548}
+  cityRadius: 155.9
+  outSkirtMultiplyer: 0.05
+  probabilityScale: 0.96
+  evaluationRadius: 3
+  probabilityPower: 30
   autoErode: 1
   autoGenMesh: 1
   cancelErosion: 0

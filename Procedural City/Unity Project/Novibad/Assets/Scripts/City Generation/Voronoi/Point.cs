@@ -4,7 +4,7 @@ using UnityEngine;
 // a point in 2D, sorted by y-coordinate
 public class Point : IComparable<Point>
 {
-    private Vector2 position;
+    public Vector2 position;
     public float x => position.x;
     public float y => position.y;
 
@@ -44,5 +44,4 @@ public class Point : IComparable<Point>
     {
         return "(" + x + ", " + y + ")";
     }
-
 }

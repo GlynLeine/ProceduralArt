@@ -9,6 +9,7 @@ public class BuildingGenerator : MonoBehaviour
 {
     private const float MINUTE_VALUE = 0.0001f;
     public static int numberOfGeneratingBuildings = 0;
+    public static int numberOfBuildingInitiated = 0;
 
     public static TerrainGenerator sharedTerrain;
 
@@ -45,9 +46,42 @@ public class BuildingGenerator : MonoBehaviour
 
     private bool cancelGeneration = false;
     private bool restartGeneration = false;
-    private Thread generationThread;
+    //  private Thread generationThread;
+
+    private static List<IEnumerator> wallGenCoRoutines = new List<IEnumerator>();
+    private static List<IEnumerator> roofGenCoRoutines = new List<IEnumerator>();
+
+    IEnumerator wallGenCoRoutine;
+    IEnumerator roofGenCoRoutine;
+
     private Matrix4x4 baseTransformMatrix;
     private float heightOffset;
+
+    static BuildingGenerator()
+    {
+        EditorApplication.update += Update;
+    }
+
+    static void Update()
+    {
+        if (wallGenCoRoutines.Count > 0)
+            for (int i = 0; i < wallGenCoRoutines.Count; i++)
+            {
+                if (wallGenCoRoutines[i] == null)
+                    wallGenCoRoutines.RemoveAt(i);
+
+                wallGenCoRoutines[i].MoveNext();
+            }
+
+        if (roofGenCoRoutines.Count > 0)
+            for (int i = 0; i < roofGenCoRoutines.Count; i++)
+            {
+                if (roofGenCoRoutines[i] == null)
+                    roofGenCoRoutines.RemoveAt(i);
+
+                roofGenCoRoutines[i].MoveNext();
+            }
+    }
 
     [System.Serializable]
     public struct WallInterrupt
@@ -231,11 +265,17 @@ public class BuildingGenerator : MonoBehaviour
 
     private IEnumerator TrackProgressCoroutine()
     {
-        while (generationThread.IsAlive)
+        while (wallGenCoRoutine != null && roofGenCoRoutine != null)
         {
             if (cancelGeneration)
             {
-                generationThread.Abort();
+                //    generationThread.Abort();
+
+                wallGenCoRoutines.Remove(wallGenCoRoutine);
+                wallGenCoRoutine = null;
+                roofGenCoRoutines.Remove(roofGenCoRoutine);
+                roofGenCoRoutine = null;
+
                 numberOfGeneratingBuildings--;
             }
             yield return null;
@@ -256,17 +296,55 @@ public class BuildingGenerator : MonoBehaviour
             Debug.Log("restart thread");
             restartGeneration = false;
             cancelGeneration = false;
-            generationThread = new Thread(new ThreadStart(MeshGenerationThread));
+            //generationThread = new Thread(new ThreadStart(MeshGenerationThread));
 
             meshData = new MeshData();
             baseTransformMatrix = transform.worldToLocalMatrix;
+            heightOffset = transform.position.y;
 
-            generationThread.Start();
+            buildingTheme.SetSeed(seed);
+
+            wallGenCoRoutine = GenerateWalls();
+            wallGenCoRoutines.Add(wallGenCoRoutine);
+            roofGenCoRoutine = GenerateRoofs();
+            roofGenCoRoutines.Add(roofGenCoRoutine);
+
             numberOfGeneratingBuildings++;
             StartCoroutine(TrackProgressCoroutine());
         }
     }
 
+    public void GenerateMeshAsync()
+    {
+        if (meshFilter == null)
+            meshFilter = gameObject.GetComponent<MeshFilter>();
+        if (meshFilter == null)
+            meshFilter = gameObject.AddComponent<MeshFilter>();
+
+        if (meshRenderer == null)
+            meshRenderer = gameObject.GetComponent<MeshRenderer>();
+        if (meshRenderer == null)
+            meshRenderer = gameObject.AddComponent<MeshRenderer>();
+
+        restartGeneration = false;
+        cancelGeneration = false;
+
+        meshData = new MeshData();
+        baseTransformMatrix = transform.worldToLocalMatrix;
+        heightOffset = transform.position.y;
+
+        buildingTheme.SetSeed(seed);
+
+        wallGenCoRoutine = GenerateWalls();
+        wallGenCoRoutines.Add(wallGenCoRoutine);
+        roofGenCoRoutine = GenerateRoofs();
+        roofGenCoRoutines.Add(roofGenCoRoutine);
+
+        numberOfGeneratingBuildings++;
+        numberOfBuildingInitiated++;
+        StartCoroutine(TrackProgressCoroutine());
+    }
+    
     public void GenerateMesh()
     {
         if (meshFilter == null)
@@ -279,27 +357,29 @@ public class BuildingGenerator : MonoBehaviour
         if (meshRenderer == null)
             meshRenderer = gameObject.AddComponent<MeshRenderer>();
 
-        if (generationThread != null && generationThread.IsAlive)
-        {
-            cancelGeneration = true;
-            restartGeneration = true;
-            return;
-        }
-
         restartGeneration = false;
         cancelGeneration = false;
-        generationThread = new Thread(new ThreadStart(MeshGenerationThread));
 
         meshData = new MeshData();
         baseTransformMatrix = transform.worldToLocalMatrix;
         heightOffset = transform.position.y;
 
-        generationThread.Start();
+        buildingTheme.SetSeed(seed);
+
+        wallGenCoRoutine = GenerateWalls();
+        roofGenCoRoutine = GenerateRoofs();
+
+        while(wallGenCoRoutine != null)
+            wallGenCoRoutine.MoveNext();
+
+        while(roofGenCoRoutine != null)
+            roofGenCoRoutine.MoveNext();
+
         numberOfGeneratingBuildings++;
-        StartCoroutine(TrackProgressCoroutine());
+        numberOfBuildingInitiated++;
     }
 
-    private void GenerateWalls()
+    private IEnumerator GenerateWalls()
     {
         foreach (Limb limb in skeleton)
         {
@@ -328,6 +408,8 @@ public class BuildingGenerator : MonoBehaviour
                         Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
                         Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up);
                         WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(y, floor));
+
+                        yield return null;
                     }
 
                     if (!limb.doubleSided && sideScale < 0)
@@ -340,12 +422,17 @@ public class BuildingGenerator : MonoBehaviour
                         Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
                         Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up);
                         WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(x - limb.width / 2f, floor));
+
+                        yield return null;
                     }
                 }
         }
+
+        wallGenCoRoutines.Remove(wallGenCoRoutine);
+        wallGenCoRoutine = null;
     }
 
-    private void GenerateRoofs()
+    private IEnumerator GenerateRoofs()
     {
         foreach (Limb limb in skeleton)
         {
@@ -373,17 +460,23 @@ public class BuildingGenerator : MonoBehaviour
                         Vector3 position = new Vector3(segmentPos.x, limb.height + x + heightOffset, segmentPos.y);
                         Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up);
                         WeldMesh(meshData, roofData, position, rotation, baseTransformMatrix, new Vector2(x, y));
+
+                        yield return null;
                     }
 
                     for (int frontScale = -1; frontScale <= 1; frontScale += 2)
                         if (limb.doubleSided || frontScale > 0)
                             for (int floor = 0; floor <= x; floor++)
                             {
-                                Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x - 0.5f) * sideScale + yAxis * (limb.length * Mathf.Max(0, frontScale) + MINUTE_VALUE * frontScale);
-                                MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
+                                bool flip = sideScale > 0 ? frontScale > 0 : frontScale < 0;
+
+                                Vector2 segmentPos = limb.limbBase + xAxis * (limb.width / 2f - x - 0.5f) * sideScale + yAxis * (limb.length * Mathf.Max(0, frontScale) + MINUTE_VALUE * frontScale - (flip ? 0 : 0.2f) * frontScale);
+                                MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, floor == x ? SectionType.centeredStraight : SectionType.straight);
                                 Vector3 position = new Vector3(segmentPos.x, limb.height + floor + heightOffset, segmentPos.y);
-                                Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up);
+                                Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * (flip ? -1 : 1), Vector3.up);
                                 WeldMesh(meshData, roofFacadeData, position, rotation, baseTransformMatrix, new Vector2(x, floor));
+
+                                yield return null;
                             }
 
                 }
@@ -399,6 +492,8 @@ public class BuildingGenerator : MonoBehaviour
                     Vector3 position = new Vector3(segmentPos.x, limb.height + roofHeight + heightOffset, segmentPos.y);
                     Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y), Vector3.up);
                     WeldMesh(meshData, roofData, position, rotation, baseTransformMatrix, new Vector2(0, y));
+
+                    yield return null;
                 }
 
                 for (int y = 0; y <= roofHeight; y++)
@@ -406,13 +501,17 @@ public class BuildingGenerator : MonoBehaviour
                         if (limb.doubleSided || frontScale > 0)
                         {
                             Vector2 segmentPos = limb.limbBase + yAxis * limb.length * Mathf.Max(0, frontScale) + yAxis * MINUTE_VALUE * frontScale;
-                            MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, SectionType.centeredStraight);
+                            MeshData roofFacadeData = buildingTheme.GetRandomMesh(MeshType.facade, y == roofHeight ? SectionType.centeredDot : SectionType.straight);
                             Vector3 position = new Vector3(segmentPos.x, limb.height + y + heightOffset, segmentPos.y);
                             Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * frontScale * -1, Vector3.up);
                             WeldMesh(meshData, roofFacadeData, position, rotation, baseTransformMatrix, new Vector2(0, y));
+
+                            yield return null;
                         }
             }
         }
+        roofGenCoRoutines.Remove(roofGenCoRoutine);
+        roofGenCoRoutine = null;
     }
 
     private void MeshGenerationThread()

@@ -23,7 +23,7 @@ public class BuildingGeneratorEditor : Editor
         {
             building.CalculateBounds(building.transform.hasChanged);
             building.CalculateSkeleton();
-            building.GenerateMesh();
+            building.GenerateMeshAsync();
 
             EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
 

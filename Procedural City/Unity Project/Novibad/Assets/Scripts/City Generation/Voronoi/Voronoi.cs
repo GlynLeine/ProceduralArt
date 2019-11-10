@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,18 +16,16 @@ public class Voronoi
 
     float ycurr; // current y-coord of sweep line
 
-    public Voronoi(List<Vector2> points)
+    public Voronoi(List<Vector2> points, MonoBehaviour owner)
     {
         sites = new List<Point>();
-        foreach(Vector2 point in points)
+        foreach (Vector2 point in points)
             sites.Add(new Point(point));
         edges = new List<Edge>();
-        generateVoronoi();
     }
 
-    private void generateVoronoi()
+    public IEnumerator generateVoronoi()
     {
-
         events = new SortedSet<Event>();
         foreach (Point p in sites)
         {
@@ -35,24 +33,22 @@ public class Voronoi
         }
 
         // process events (sweep line)
-        int count = 0;
         while (events.Count > 0)
         {
-            //System.out.println();
             Event e = events.Min;
-            events.Remove(e);
             ycurr = e.p.y;
-            count++;
+
             if (e.type == Event.SITE_EVENT)
             {
-                //System.out.println(count + ". SITE_EVENT " + e.p);
                 handleSite(e.p);
             }
             else
             {
-                //System.out.println(count + ". CIRCLE_EVENT " + e.p);
                 handleCircle(e);
             }
+
+            events.Remove(e);
+            yield return null;
         }
 
         ycurr = width + height;
@@ -186,7 +182,6 @@ public class Voronoi
             if (gparent.child_right == p1.parent) gparent.setRightChild(p1.parent.child_left);
         }
 
-        Point op = p1.point;
         p1.parent = null;
         p1 = null;
 
@@ -197,7 +192,6 @@ public class Voronoi
     // adds circle voronoiEvent if foci a, b, c lie on the same circle
     private void checkCircleEvent(Parabola b)
     {
-
         Parabola lp = Parabola.getLeftParent(b);
         Parabola rp = Parabola.getRightParent(b);
 
@@ -215,13 +209,11 @@ public class Voronoi
         if (start == null) return;
 
         // compute radius
-        float dx = b.point.x - start.x;
-        float dy = b.point.y - start.y;
-        float d = Mathf.Sqrt((dx * dx) + (dy * dy));
-        if (start.y + d < ycurr) return; // must be after sweep line
+        float distance = (b.point.position - start.position).magnitude;
+        if (start.y + distance < ycurr) return; // must be after sweep line
 
-        Point ep = new Point(start.x, start.y + d);
-        //System.out.println("added circle voronoiEvent "+ ep);
+        Point ep = new Point(start.x, start.y + distance);
+        //Debug.Log("added circle voronoiEvent "+ ep);
 
         // add circle voronoiEvent
         Event e = new Event(ep, Event.CIRCLE_EVENT);

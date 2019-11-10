@@ -225,17 +225,17 @@ ScriptedImporter:
       - name: _HdrpVersion
         float: 2
       - name: _HeightAmplitude
-        float: 0.5162
+        float: 0.099999994
       - name: _HeightCenter
-        float: 0.3723363
+        float: 0.5
       - name: _HeightMapParametrization
         float: 0
       - name: _HeightMax
-        float: 51.62
+        float: 5
       - name: _HeightMin
-        float: 0
+        float: -5
       - name: _HeightOffset
-        float: -19.22
+        float: 0
       - name: _HeightPoMAmplitude
         float: 2
       - name: _HeightTessAmplitude
@@ -321,7 +321,7 @@ ScriptedImporter:
       - name: _TessellationBackFaceCullEpsilon
         float: -0.25
       - name: _TessellationFactor
-        float: 64
+        float: 32
       - name: _TessellationFactorMaxDistance
         float: 50
       - name: _TessellationFactorMinDistance

@@ -107,6 +107,8 @@ public class TerrainGeneratorEditor : Editor
         while (property.NextVisible(true))
         {
             EditorGUILayout.PropertyField(property);
+            if (property.name == "waterDampening")
+                break;
         }
 
         changed = EditorGUI.EndChangeCheck() || changed;
@@ -123,6 +125,12 @@ public class TerrainGeneratorEditor : Editor
         {
             terrainGenerator.ApplyErosion();
         }
+
+        while (property.NextVisible(true))
+            EditorGUILayout.PropertyField(property);
+
+        if (GUILayout.Button("Evaluate City Layout"))
+            terrainGenerator.EvaluateCityLayout();
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
@@ -177,7 +185,7 @@ public class TerrainGeneratorEditor : Editor
                     terrainGenerator.GenerateHeightMap();
 
                 if (terrainGenerator.heightMap != null && autoUpdateErosion && !TerrainGenerator.eroding)
-                {                    
+                {
                     terrainGenerator.ApplyErosion();
                 }
 
@@ -212,6 +220,18 @@ public class TerrainGeneratorEditor : Editor
             terrainGenerator.SaveMesh();
 
         serializedObject.ApplyModifiedProperties();
+    }
+
+    private void OnSceneGUI()
+    {
+        Vector3 cityPos = new Vector3(terrainGenerator.cityCenter.x, 0, terrainGenerator.cityCenter.y) + terrainGenerator.transform.position;
+
+        cityPos = Handles.DoPositionHandle(cityPos, Quaternion.identity);
+
+        Handles.DrawWireArc(cityPos, Vector3.up, Vector3.forward, 360, terrainGenerator.cityRadius);
+
+        cityPos -= terrainGenerator.transform.position;
+        terrainGenerator.cityCenter = new Vector2Int(Mathf.RoundToInt(cityPos.x), Mathf.RoundToInt(cityPos.z));
     }
 
     void OnEnable()

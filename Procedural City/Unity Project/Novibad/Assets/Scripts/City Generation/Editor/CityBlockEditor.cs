@@ -22,6 +22,17 @@ public class CityBlockEditor : Editor
 
     }
 
+    public void DrawLines()
+    {
+        if (cityBlock == null)
+            cityBlock = target as CityBlock;
+
+
+        for (int i = 0; i < cityBlock.intersections.Count; i++)
+            if (cityBlock.intersections[i])
+                (CreateEditor(cityBlock.intersections[i]) as IntersectionEditor).OnSceneGUI();
+    }
+
     public void OnSceneGUI()
     {
         if (cityBlock == null)
@@ -33,7 +44,7 @@ public class CityBlockEditor : Editor
 
             Vector3 averagePos = Vector3.zero;
             int intersectionCount = 0;
-            for (int i = 0; i < cityBlock.intersections.Length; i++)
+            for (int i = 0; i < cityBlock.intersections.Count; i++)
             {
                 if (!cityBlock.intersections[i])
                     continue;
@@ -59,16 +70,16 @@ public class CityBlockEditor : Editor
 
             if (positionsChanged)
             {
-                for (int i = 0; i < cityBlock.intersections.Length; i++)
+                for (int i = 0; i < cityBlock.intersections.Count; i++)
                     if (cityBlock.intersections[i])
                         cityBlock.intersections[i].CorrectStreetPositions();
 
-                for (int i = 0; i < cityBlock.intersections.Length; i++)
+                for (int i = 0; i < cityBlock.intersections.Count; i++)
                     if (cityBlock.intersections[i])
                         cityBlock.intersections[i].CorrectStreetIntersections();
             }
 
-            for (int i = 0; i < cityBlock.intersections.Length; i++)
+            for (int i = 0; i < cityBlock.intersections.Count; i++)
                 if (cityBlock.intersections[i])
                     (CreateEditor(cityBlock.intersections[i]) as IntersectionEditor).OnSceneGUI();
         }

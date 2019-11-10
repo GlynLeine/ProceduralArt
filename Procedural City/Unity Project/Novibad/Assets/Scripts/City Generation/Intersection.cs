@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class Intersection : MonoBehaviour
 {
-    public List<StreetGenerator> connectedStreets;
+    public List<StreetGenerator> connectedStreets = new List<StreetGenerator>();
 
     class SideData
     {
@@ -34,7 +34,7 @@ public class Intersection : MonoBehaviour
         StreetGenerator.sharedTerrain = sharedTerrain;
 
         Vector2 position = new Vector2(transform.position.x, transform.position.z);
-        transform.position = new Vector3(position.x, 0, position.y);
+        transform.position = new Vector3(position.x, terrain.GetTerrainHeight(position), position.y);
 
         for (int i = 0; i < connectedStreets.Count; i++)
         {
@@ -67,6 +67,9 @@ public class Intersection : MonoBehaviour
 
                 float angle = (Mathf.Atan2(toSide.x, toSide.y) + Mathf.PI) * 180 / Mathf.PI;
 
+                while(streetSides.ContainsKey(angle))
+                    angle = angle + 0.0001f;
+
                 streetSides.Add(angle, new SideData(startSide, side, null, street));
             }
 
@@ -92,6 +95,9 @@ public class Intersection : MonoBehaviour
         foreach (SideData sideData in streetSides.Values)
         {
             Vector2 firstAxis = (sideData.side.end - sideData.side.start).normalized;
+            if(sideData.other == null)
+                continue;
+
             Vector2 secondAxis = (sideData.other.side.end - sideData.other.side.start).normalized;
 
             if (LineSegmentsIntersection(sideData.side.start, sideData.side.end, sideData.other.side.start, sideData.other.side.end, out intersection))
@@ -131,18 +137,6 @@ public class Intersection : MonoBehaviour
 
                     sideData.side.end = intersection;
                 }
-
-                //if (sideData.other.startSide)
-                //{
-                //    Vector2 cutAxis = new Vector2(-firstAxis.y, firstAxis.x);
-                //    float cutLength = sideData.street.buildingShapes[0].width / sideData.street.buildingShapes[0].prefferedRatioUpperBound;
-                //    Vector2 newStart = intersection - Vector2.Dot(cutAxis * cutLength, secondAxis) * secondAxis;
-                //    sideData.other.side.start = newStart;
-                //}
-                //else
-                //{
-                //    sideData.other.side.end = intersection;
-                //}
             }
             else if (LineSegmentsIntersection(sideData.side.start - firstAxis * 1000, sideData.side.end + firstAxis * 1000, sideData.other.side.start - secondAxis * 1000, sideData.other.side.end + secondAxis * 1000, out intersection))
             {

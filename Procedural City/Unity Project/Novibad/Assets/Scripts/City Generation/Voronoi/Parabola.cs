@@ -24,6 +24,18 @@ public class Parabola
         type = IS_VERTEX;
     }
 
+    //public Parabola(Parabola source)
+    //{
+    //    type = source.type;
+    //    point = source.point;
+    //    edge = source.edge;
+    //    voronoiEvent = source.voronoiEvent;
+
+    //    parent = source.parent;
+    //    child_left = source.child_left;
+    //    child_right = source.child_right;
+    //}
+
     public Parabola(Point p)
     {
         point = p;
@@ -113,7 +125,4 @@ public class Parabola
         while (child.type == IS_VERTEX) child = child.child_left;
         return child;
     }
-
-
-
 }
