@@ -10,12 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7684cf2717694b145919f9bb7e9eb4a6, type: 3}
-  m_Name: Test Theme
+  m_Name: Test Theme 1
   m_EditorClassIdentifier: 
   walls:
-  - {fileID: 11400000, guid: 04b4eb342c4dcbc42b5d86890477e682, type: 2}
-  - {fileID: 11400000, guid: d96990907385fca4ea86ea542db20c0b, type: 2}
+  - {fileID: 11400000, guid: 1bf5ad4595742d14da6f98bd27b21e53, type: 2}
   roofs:
   - {fileID: 11400000, guid: 164be8ad9df76b749ab30e74ed1555a6, type: 2}
   roofFacades:
-  - {fileID: 11400000, guid: d5cafdc25247aab4ab0287305b805a78, type: 2}
+  - {fileID: 11400000, guid: d0b73e7a6b2521f40971e655b434ffaa, type: 2}

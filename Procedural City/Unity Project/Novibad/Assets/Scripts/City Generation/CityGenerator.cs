@@ -31,6 +31,11 @@ public class CityGenerator : MonoBehaviour
     private static IEnumerator generationCoRoutine;
     private static IEnumerator trackProgressCoRoutine;
 
+    private GameObject cityBlockParent;
+    private GameObject intersectionParent;
+    private GameObject streetParent;
+
+
     static CityGenerator()
     {
         EditorApplication.update += Update;
@@ -100,6 +105,19 @@ public class CityGenerator : MonoBehaviour
             DestroyImmediate(transform.GetChild(0).gameObject);
         }
 
+        cityBlockParent = new GameObject();
+        cityBlockParent.transform.position = transform.position;
+        cityBlockParent.transform.parent = transform;
+        cityBlockParent.name = "City Blocks";
+        intersectionParent = new GameObject();
+        intersectionParent.transform.position = transform.position;
+        intersectionParent.transform.parent = transform;
+        intersectionParent.name = "Intersections";
+        streetParent = new GameObject();
+        streetParent.transform.position = transform.position;
+        streetParent.transform.parent = transform;
+        streetParent.name = "Streets";
+
         System.Random random = new System.Random(seed);
 
         Edge[] edges = GetEdges();
@@ -127,7 +145,7 @@ public class CityGenerator : MonoBehaviour
             else
             {
                 GameObject gameObject = new GameObject();
-                gameObject.transform.parent = transform;
+                gameObject.transform.parent = intersectionParent.transform;
                 start = gameObject.AddComponent<Intersection>();
                 start.gameObject.name = "intersection " + intersectionCount;
                 intersectionCount++;
@@ -142,7 +160,7 @@ public class CityGenerator : MonoBehaviour
             else
             {
                 GameObject gameObject = new GameObject();
-                gameObject.transform.parent = transform;
+                gameObject.transform.parent = intersectionParent.transform;
                 end = gameObject.AddComponent<Intersection>();
                 end.gameObject.name = "intersection " + intersectionCount;
                 intersectionCount++;
@@ -157,7 +175,7 @@ public class CityGenerator : MonoBehaviour
             else
             {
                 GameObject gameObject = new GameObject();
-                gameObject.transform.parent = transform;
+                gameObject.transform.parent = cityBlockParent.transform;
                 leftBlock = gameObject.AddComponent<CityBlock>();
                 leftBlock.gameObject.name = "city block " + blockCount;
                 blockCount++;
@@ -172,7 +190,7 @@ public class CityGenerator : MonoBehaviour
             else
             {
                 GameObject gameObject = new GameObject();
-                gameObject.transform.parent = transform;
+                gameObject.transform.parent = cityBlockParent.transform;
                 rightBlock = gameObject.AddComponent<CityBlock>();
                 rightBlock.gameObject.name = "city block " + blockCount;
                 blockCount++;
@@ -193,7 +211,7 @@ public class CityGenerator : MonoBehaviour
                 rightBlock.intersections.Add(end);
 
             GameObject parentObject = new GameObject();
-            parentObject.transform.parent = transform;
+            parentObject.transform.parent = streetParent.transform;
             StreetGenerator street = parentObject.AddComponent<StreetGenerator>();
             street.gameObject.name = "street " + i;
             street.width = streetWidth;

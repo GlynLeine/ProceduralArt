@@ -265,12 +265,10 @@ public class BuildingGenerator : MonoBehaviour
 
     private IEnumerator TrackProgressCoroutine()
     {
-        while (wallGenCoRoutine != null && roofGenCoRoutine != null)
+        while (wallGenCoRoutine != null || roofGenCoRoutine != null)
         {
             if (cancelGeneration)
             {
-                //    generationThread.Abort();
-
                 wallGenCoRoutines.Remove(wallGenCoRoutine);
                 wallGenCoRoutine = null;
                 roofGenCoRoutines.Remove(roofGenCoRoutine);
@@ -408,7 +406,6 @@ public class BuildingGenerator : MonoBehaviour
                         Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
                         Quaternion rotation = Quaternion.LookRotation(new Vector3(xAxis.x, 0, xAxis.y) * sideScale * -1, Vector3.up);
                         WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(y, floor));
-
                         yield return null;
                     }
 
@@ -422,7 +419,6 @@ public class BuildingGenerator : MonoBehaviour
                         Vector3 position = new Vector3(segmentPos.x, floor + heightOffset, segmentPos.y);
                         Quaternion rotation = Quaternion.LookRotation(new Vector3(yAxis.x, 0, yAxis.y) * sideScale * -1, Vector3.up);
                         WeldMesh(meshData, wallData, position, rotation, baseTransformMatrix, new Vector2(x - limb.width / 2f, floor));
-
                         yield return null;
                     }
                 }
