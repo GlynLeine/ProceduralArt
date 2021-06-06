@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7684cf2717694b145919f9bb7e9eb4a6, type: 3}
+  m_Name: Test Theme 1
+  m_EditorClassIdentifier: 
+  walls:
+  - {fileID: 11400000, guid: 1bf5ad4595742d14da6f98bd27b21e53, type: 2}
+  roofs:
+  - {fileID: 11400000, guid: 164be8ad9df76b749ab30e74ed1555a6, type: 2}
+  roofFacades:
+  - {fileID: 11400000, guid: d0b73e7a6b2521f40971e655b434ffaa, type: 2}

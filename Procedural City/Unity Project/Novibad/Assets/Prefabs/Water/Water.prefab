@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &437995625575570450
+--- !u!1 &804871826093479557
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7864234574490658448}
-  - component: {fileID: 3390123104551822563}
-  - component: {fileID: 2064056494190783837}
+  - component: {fileID: 850607372743947494}
+  - component: {fileID: 6455891771430962227}
+  - component: {fileID: 5521664782674240326}
   m_Layer: 0
   m_Name: Water
   m_TagString: Untagged
@@ -18,27 +18,35 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7864234574490658448
+--- !u!4 &850607372743947494
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 437995625575570450}
+  m_GameObject: {fileID: 804871826093479557}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.7226524, y: 3.185024, z: -18.36091}
+  m_LocalPosition: {x: 48.97307, y: 13.1, z: 170.82532}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!23 &3390123104551822563
+--- !u!33 &6455891771430962227
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 804871826093479557}
+  m_Mesh: {fileID: 0}
+--- !u!23 &5521664782674240326
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 437995625575570450}
+  m_GameObject: {fileID: 804871826093479557}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -69,24 +77,3 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
---- !u!114 &2064056494190783837
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 437995625575570450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 045929fa2ed5ed042ae8b3bebbd647e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  updateInEditor: 0
-  dimension: 160
-  uvScale: 160
-  octaves:
-  - offset: {x: 0, y: 0}
-    scale: {x: 0, y: 0}
-    height: 0
-  resolution: 160
-  vertexCompute: 1
